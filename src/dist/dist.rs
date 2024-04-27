@@ -1,6 +1,6 @@
 //! Some standard distances as L1, L2, Cosine, Jaccard, Hamming
 //! and a structure to enable the user to implement its own distances.
-//! For the heavily used case (f32) we provide simd avx2 implementation.
+//! For the heavily used case (f32) we provide simd avx2 and std::simd implementations.
 
 #[cfg(feature = "stdsimd")]
 use super::distsimd::*;
@@ -755,7 +755,6 @@ impl<T: Copy + Clone + Sized + Send + Sync, F: Float> Distance<T> for DistPtr<T,
 
 mod tests {
     use super::*;
-    use hnsw_rs::hnsw::*;
 
     fn init_log() -> u64 {
         let mut builder = env_logger::Builder::from_default_env();
@@ -948,7 +947,7 @@ mod tests {
     #[test]
 
     fn test_my_closure() {
-        use hnsw_rs::dist::Distance;
+        //        use hnsw_rs::dist::Distance;
         let weight = vec![0.1, 0.8, 0.1];
         let my_fn = move |va: &[f32], vb: &[f32]| -> f32 {
             // should check that we work with same size for va, vb, and weight...
@@ -959,13 +958,13 @@ mod tests {
             dist
         };
         let my_boxed_f = Box::new(my_fn);
-        let my_boxed_dist = hnsw_rs::dist::DistFn::<f32>::new(my_boxed_f);
+        let my_boxed_dist = crate::dist::DistFn::<f32>::new(my_boxed_f);
         let va: Vec<f32> = vec![1., 2., 3.];
         let vb: Vec<f32> = vec![2., 2., 4.];
         let dist = my_boxed_dist.eval(&va, &vb);
         println!("test_my_closure computed : {:?}", dist);
         // try allocation Hnsw
-        let _hnsw = Hnsw::<f32, hnsw_rs::dist::DistFn<f32>>::new(10, 3, 100, 16, my_boxed_dist);
+        //        let _hnsw = Hnsw::<f32, hnsw_rs::dist::DistFn<f32>>::new(10, 3, 100, 16, my_boxed_dist);
         //
         assert_eq!(dist, 0.2);
     } // end of test_my_closure
