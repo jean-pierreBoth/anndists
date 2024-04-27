@@ -1,0 +1,73 @@
+[package]
+name = "anndists"
+version = "0.1.0"
+authors = ["jeanpierre.both@gmail.com"]
+description = "some distances used Ann related crates"
+license = "MIT/Apache-2.0"
+readme = "README.md"
+keywords = ["algorithms", "ann", "hnsw"]
+repository = "https://github.com/jean-pierreBoth/anndists"
+documentation = "https://docs.rs/anndists"
+edition = "2021"
+
+
+# declare a feature with no dependancy to get some modulated debug print
+# to be run with cargo build --features verbose_1
+#verbose_1 = [ ]
+
+[profile.release]
+lto = true
+opt-level = 3
+
+[lib]
+# cargo rustc --lib -- --crate-type dylib [or staticlib] or rlib (default)
+# if we want to avoid specifying in advance crate-type 
+path = "src/lib.rs"
+#crate-type = ["cdylib"]
+
+
+[dependencies]
+# default is version spec is ^ meaning can update up to max non null version number
+# cargo doc --no-deps avoid dependencies doc generation
+#
+
+cfg-if = { version = "1.0" }
+
+# for //
+rayon = { version = "1.10" }
+num_cpus = { version = "1.16" }
+
+cpu-time = { version = "1.0" }
+num-traits = { version = "0.2" }
+
+
+rand = { version = "0.8" }
+lazy_static = { version = "1.4" }
+
+#
+# decreasing order of log for debug build : (max_level_)trace debug info warn error off
+# decreasing order of log for release build (release_max_level_)  .. idem
+#log = { version = "0.4", features = ["max_level_debug", "release_max_level_info"] }
+log = { version = "0.4" }
+env_logger = { version = "0.10" }
+
+anyhow = { version = "1.0" }
+
+
+# x86_64 simd stuff , enabled by  simdeez_f feature 
+simdeez = { version = "1.0", optional = true }
+
+
+# for benchmark reading, so the lbrary do not depend on hdf5 nor ndarray
+[dev-dependencies]
+hnsw_rs = { version = "0.2" }
+
+
+[features]
+
+default = []
+
+# feature for std simd on nightly
+stdsimd = []
+# feature for simd on stable for x86*
+simdeez_f = ["simdeez"]
