@@ -1,6 +1,6 @@
 # anndists
 
-This crate provides distances computations used in some related crates [hnsw_rs](https://crates.io/crates/hnsw_rs), [annembed](https://crates.io/crates/annembed).
+This crate provides distances computations used in some related crates [hnsw_rs](https://crates.io/crates/hnsw_rs), [annembed](https://crates.io/crates/annembed) and [coreset](https://github.com/jean-pierreBoth/coreset)
 
 
 
