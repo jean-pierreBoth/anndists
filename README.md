@@ -1,8 +1,6 @@
 # anndists
 
-This crate provides distances computations used in some related crates [hnsw_rs](https://crates.io/crates/hnsw_rs), [annembed](https://crates.io/crates/annembed)
-
-
+This crate provides distances computations used in some related crates [hnsw_rs](https://crates.io/crates/hnsw_rs), [annembed](https://crates.io/crates/annembed).
 
 
 
@@ -24,7 +22,8 @@ The crate provides:
 
 ## Implementation
 
-The implementation uses simd on intel and is being completed with std::simd.
+The implementation provides simd support.
+It uses [simdeez](https://crates.io/crates/simdeez) on Intel and is being extended with std::simd.
 
 ## Building
 
@@ -43,14 +42,13 @@ To compile this crate on a M1 chip just do not activate this feature.
 
 ## Benchmarks and Examples
 
-The speed is illustated in the [hnsw_rs](https://crates.io/crates/hnsw_rs), [annembed](https://crates.io/crates/annembed) ctrates
+The speed is illustated in the [hnsw_rs](https://crates.io/crates/hnsw_rs), [annembed](https://crates.io/crates/annembed) crates
 
 
 
 
 ## Contributions
 
-[Sannsyn](https://sannsyn.com/en/) contributed to Drop implementation and FilterT trait.
 Petter Egesund added the DistLevenshtein distance.
 
 
