@@ -31,7 +31,7 @@ The crate provides:
 ## Implementation
 
 The implementation provides simd support.
-It uses [simdeez](https://crates.io/crates/simdeez) on Intel and is being extended with std::simd.
+It uses [simdeez](https://crates.io/crates/simdeez) on Intel and partial extension std::simd.
 
 ## Building
 
