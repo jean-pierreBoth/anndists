@@ -1,7 +1,7 @@
 //! module for distance implementation
 
-pub mod dist;
-pub use dist::*;
+pub mod distances;
+pub use distances::*;
 
 /// std simd distances
 pub mod distsimd;

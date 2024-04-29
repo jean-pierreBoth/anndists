@@ -7,7 +7,7 @@ use simdeez::avx2::*;
 use simdeez::sse2::*;
 use simdeez::*;
 
-use super::dist::M_MIN;
+use super::distances::M_MIN;
 
 pub(super) unsafe fn distance_l1_f32<S: Simd>(va: &[f32], vb: &[f32]) -> f32 {
     assert_eq!(va.len(), vb.len());
