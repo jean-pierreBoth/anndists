@@ -1,11 +1,11 @@
 [package]
 name = "anndists"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["jeanpierre.both@gmail.com"]
-description = "some distances used Ann related crates"
+description = "some distances used in Ann related crates"
 license = "MIT/Apache-2.0"
 readme = "README.md"
-keywords = ["algorithms", "ann", "hnsw"]
+keywords = ["algorithms", "distances", "ann"]
 repository = "https://github.com/jean-pierreBoth/anndists"
 documentation = "https://docs.rs/anndists"
 edition = "2021"
