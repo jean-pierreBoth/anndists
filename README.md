@@ -2,6 +2,14 @@
 
 This crate provides distances computations used in some related crates [hnsw_rs](https://crates.io/crates/hnsw_rs), [annembed](https://crates.io/crates/annembed) and [coreset](https://github.com/jean-pierreBoth/coreset)
 
+All distances implement the trait **Distance**:
+
+
+```rust
+pub trait Distance<T: Send + Sync> {  
+    fn eval(&self, va: &[T], vb: &[T]) -> f32;
+}
+```
 
 
 ## Functionalities
