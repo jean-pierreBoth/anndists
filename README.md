@@ -26,12 +26,11 @@ The crate provides:
 * A Trait to enable the user to implement its own distances.
   It takes as data slices of types T satisfying T:Serialize+Clone+Send+Sync. It is also possible to use C extern functions or closures.
 
-
+* Simd implementation is provided for the most often used case.
 
 ## Implementation
 
-The implementation provides simd support.
-It uses [simdeez](https://crates.io/crates/simdeez) on Intel and partial extension std::simd.
+Simd support is provided with the [simdeez](https://crates.io/crates/simdeez) crate on Intel and partial implementation with **std::simd**.
 
 ## Building
 
