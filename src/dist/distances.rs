@@ -770,7 +770,7 @@ mod tests {
         let v1: Vec<i32> = vec![1, 2, 3];
         let v2: Vec<i32> = vec![2, 2, 3];
 
-        let d1 = crate::prelude::Distance::eval(&distl1, &v1, &v2);
+        let d1 = Distance::eval(&distl1, &v1, &v2);
         assert_eq!(d1, 1 as f32);
 
         let v3: Vec<f32> = vec![1., 2., 3.];
@@ -822,12 +822,12 @@ mod tests {
         let v1: Vec<i32> = vec![1, -1, 1];
         let v2: Vec<i32> = vec![2, 1, -1];
 
-        let d1 = crate::prelude::Distance::eval(&distcos, &v1, &v2);
+        let d1 = Distance::eval(&distcos, &v1, &v2);
         assert_eq!(d1, 1. as f32);
         //
         let v1: Vec<f32> = vec![1.234, -1.678, 1.367];
         let v2: Vec<f32> = vec![4.234, -6.678, 10.367];
-        let d1 = crate::prelude::Distance::eval(&distcos, &v1, &v2);
+        let d1 = Distance::eval(&distcos, &v1, &v2);
 
         let mut normv1 = 0.;
         let mut normv2 = 0.;
@@ -958,7 +958,7 @@ mod tests {
             dist
         };
         let my_boxed_f = Box::new(my_fn);
-        let my_boxed_dist = crate::dist::DistFn::<f32>::new(my_boxed_f);
+        let my_boxed_dist = DistFn::<f32>::new(my_boxed_f);
         let va: Vec<f32> = vec![1., 2., 3.];
         let vb: Vec<f32> = vec![2., 2., 4.];
         let dist = my_boxed_dist.eval(&va, &vb);
@@ -981,7 +981,7 @@ mod tests {
         p_data[0] -= 1. / (2 * length) as f32;
         p_data[1] += 1. / (2 * length) as f32;
         //
-        let dist = crate::prelude::DistHellinger.eval(&p_data, &q_data);
+        let dist = DistHellinger.eval(&p_data, &q_data);
 
         let dist_exact_fn = |n: usize| -> f32 {
             let d1 = (4. - (6 as f32).sqrt() - (2 as f32).sqrt()) / n as f32;

@@ -2,7 +2,6 @@
 
 pub mod distances;
 pub use distances::*;
-
 /// std simd distances
 pub mod distsimd;
 
