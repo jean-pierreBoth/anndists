@@ -3,7 +3,7 @@
 pub mod distances;
 pub use distances::*;
 /// std simd distances
-pub mod distsimd;
+pub(crate) mod distsimd;
 
 // simdeez distance implementation
-pub mod disteez;
+pub(crate) mod disteez;
