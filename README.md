@@ -30,7 +30,7 @@ The crate provides:
 
 ## Implementation
 
-Simd support is provided with the [simdeez](https://crates.io/crates/simdeez) crate on Intel and partial implementation with **std::simd**.
+Simd support is provided with the [simdeez](https://crates.io/crates/simdeez) crate on Intel and partial implementation with **std::simd** for general case.
 
 ## Building
 
@@ -42,7 +42,7 @@ To compile this crate on a M1 chip just do not activate this feature.
 
 * It is nevertheless possible to experiment with std::simd. Compiling with the feature stdsimd
   (**cargo build --release --features "stdsimd"**), activates the  portable_simd feature on rust nightly. **This requires nightly compiler**. 
-  Only the Hamming distance with the u32x16 and u64x8 types and DistL1,DistL2 and DistDot on f32*16 are provided.
+  Only the Hamming distance with the u32x16 and u64x8 types and DistL1,DistL2 and DistDot on f32*16 are provided for now.
 
 
 

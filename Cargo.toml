@@ -1,6 +1,6 @@
 [package]
 name = "anndists"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["jeanpierre.both@gmail.com"]
 description = "some distances used in Ann related crates"
 license = "MIT/Apache-2.0"
