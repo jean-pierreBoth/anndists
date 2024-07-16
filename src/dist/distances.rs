@@ -110,7 +110,7 @@ impl Distance<f32> for DistL1 {
             distance_l1_f32_simd(va,vb)
         }
         else {
-            va.iter().zip(vb.iter()).map(|t| (*t.0 as f32- *t.1 as f32).abs()).sum()
+            va.iter().zip(vb.iter()).map(|t| (*t.0 - *t.1 ).abs()).sum()
         }
         } // end cfg_if
     } // end of eval
@@ -149,10 +149,10 @@ fn scalar_l2_f32(va: &[f32], vb: &[f32]) -> f32 {
     let norm: f32 = va
         .iter()
         .zip(vb.iter())
-        .map(|t| (*t.0 as f32 - *t.1 as f32) * (*t.0 as f32 - *t.1 as f32))
+        .map(|t| (*t.0 - *t.1) * (*t.0 - *t.1))
         .sum();
     assert!(norm >= 0.);
-    return norm.sqrt();
+    norm.sqrt()
 }
 
 impl Distance<f32> for DistL2 {
@@ -173,8 +173,7 @@ impl Distance<f32> for DistL2 {
                 return distance_l2_f32_simd(va, vb);
             }
             else {
-                let norm = scalar_l2_f32(&va, &vb);
-                return norm;
+                scalar_l2_f32(va, vb)
             }
         }
     } // end of eval
@@ -259,7 +258,7 @@ fn scalar_dot_f32(va: &[f32], vb: &[f32]) -> f32 {
     let dot = 1.
         - va.iter()
             .zip(vb.iter())
-            .map(|t| (*t.0 * *t.1) as f32)
+            .map(|t| (*t.0 * *t.1))
             .fold(0., |acc, t| (acc + t));
     assert!(dot >= 0.);
     dot
@@ -285,17 +284,17 @@ impl Distance<f32> for DistDot {
                 return distance_dot_f32_simd_iter(va,vb);
             }
             else {
-                return scalar_dot_f32(va, vb);
+                scalar_dot_f32(va, vb)
             }
         }
     } // end of eval
 }
 
 pub fn l2_normalize(va: &mut [f32]) {
-    let l2norm = va.iter().map(|t| (*t * *t) as f32).sum::<f32>().sqrt();
+    let l2norm = va.iter().map(|t| (*t * *t)).sum::<f32>().sqrt();
     if l2norm > 0. {
-        for i in 0..va.len() {
-            va[i] = va[i] / l2norm;
+        for v in va {
+            *v /= l2norm;
         }
     }
 }
@@ -349,7 +348,7 @@ impl Distance<f32> for DistHellinger {
         let mut dist = va
             .iter()
             .zip(vb.iter())
-            .map(|t| ((*t.0).sqrt() * (*t.1).sqrt()) as f32)
+            .map(|t| ((*t.0) * (*t.1)).sqrt())
             .fold(0., |acc, t| (acc + t));
         // if too far away from >= panic else reset!
         assert!(1. - dist >= -0.000001);
@@ -411,7 +410,7 @@ impl Distance<f32> for DistJeffreys {
         let dist = va
             .iter()
             .zip(vb.iter())
-            .map(|t| (*t.0 - *t.1) * ((*t.0).max(M_MIN) / (*t.1).max(M_MIN)).ln() as f32)
+            .map(|t| (*t.0 - *t.1) * ((*t.0).max(M_MIN) / (*t.1).max(M_MIN)).ln())
             .fold(0., |acc, t| (acc + t));
         dist
     } // end of eval
@@ -627,12 +626,7 @@ impl Distance<u16> for DistLevenshtein {
 
         let mut pre;
         let mut tmp;
-        let mut cur = vec![0; len_b];
-
-        // initialize string b
-        for i in 1..len_b {
-            cur[i] = i;
-        }
+        let mut cur: Vec<usize> = (0..len_b).collect();
 
         // calculate edit distance
         for (i, ca) in a.iter().enumerate() {
@@ -654,8 +648,7 @@ impl Distance<u16> for DistLevenshtein {
                 pre = tmp;
             }
         }
-        let res = cur[len_b - 1] as f32;
-        return res;
+        cur[len_b - 1] as f32
     }
 }
 
@@ -707,10 +700,12 @@ impl<T: Copy + Clone + Sized + Send + Sync> Distance<T> for DistCFFI<T> {
 //========================================================================================================
 
 /// This structure is to let user define their own distance with closures.
+#[allow(clippy::type_complexity)]
 pub struct DistFn<T: Copy + Clone + Sized + Send + Sync> {
     dist_function: Box<dyn Fn(&[T], &[T]) -> f32 + Send + Sync>,
 }
 
+#[allow(clippy::type_complexity)]
 impl<T: Copy + Clone + Sized + Send + Sync> DistFn<T> {
     /// construction of a DistFn
     pub fn new(f: Box<dyn Fn(&[T], &[T]) -> f32 + Send + Sync>) -> Self {
@@ -760,7 +755,7 @@ mod tests {
         let mut builder = env_logger::Builder::from_default_env();
         let _ = builder.is_test(true).try_init();
         println!("\n ************** initializing logger *****************\n");
-        return 1;
+        1
     }
 
     #[test]
@@ -771,12 +766,12 @@ mod tests {
         let v2: Vec<i32> = vec![2, 2, 3];
 
         let d1 = Distance::eval(&distl1, &v1, &v2);
-        assert_eq!(d1, 1 as f32);
+        assert_eq!(d1, 1_f32);
 
         let v3: Vec<f32> = vec![1., 2., 3.];
         let v4: Vec<f32> = vec![2., 2., 3.];
         let d2 = distl1.eval(&v3, &v4);
-        assert_eq!(d2, 1 as f32);
+        assert_eq!(d2, 1_f32);
     }
 
     #[test]
@@ -823,7 +818,7 @@ mod tests {
         let v2: Vec<i32> = vec![2, 1, -1];
 
         let d1 = Distance::eval(&distcos, &v1, &v2);
-        assert_eq!(d1, 1. as f32);
+        assert_eq!(d1, 1_f32);
         //
         let v1: Vec<f32> = vec![1.234, -1.678, 1.367];
         let v2: Vec<f32> = vec![4.234, -6.678, 10.367];
@@ -878,7 +873,7 @@ mod tests {
         let dist_check = va
             .iter()
             .zip(vb.iter())
-            .map(|t| (*t.0 as f32 - *t.1 as f32).abs())
+            .map(|t| (*t.0 - *t.1).abs())
             .sum::<f32>();
         //
         log::info!(" dist : {:.5e} dist_check : {:.5e}", dist, dist_check);
@@ -948,7 +943,7 @@ mod tests {
 
     fn test_my_closure() {
         //        use hnsw_rs::dist::Distance;
-        let weight = vec![0.1, 0.8, 0.1];
+        let weight = [0.1, 0.8, 0.1];
         let my_fn = move |va: &[f32], vb: &[f32]| -> f32 {
             // should check that we work with same size for va, vb, and weight...
             let mut dist: f32 = 0.;
@@ -984,8 +979,8 @@ mod tests {
         let dist = DistHellinger.eval(&p_data, &q_data);
 
         let dist_exact_fn = |n: usize| -> f32 {
-            let d1 = (4. - (6 as f32).sqrt() - (2 as f32).sqrt()) / n as f32;
-            d1.sqrt() / (2 as f32).sqrt()
+            let d1 = (4. - (6_f32).sqrt() - (2_f32).sqrt()) / n as f32;
+            d1.sqrt() / (2_f32).sqrt()
         };
         let dist_exact = dist_exact_fn(length);
         //
@@ -1059,18 +1054,10 @@ mod tests {
         for i in 300..size_test {
             // generer 2 va et vb s des vecteurs<i32> de taille i  avec des valeurs entre -imax et + imax et controler les resultat
             let between = Uniform::<f64>::from(-fmax..fmax);
-            let va: Vec<f64> = (0..i)
-                .into_iter()
-                .map(|_| between.sample(&mut rng))
-                .collect();
-            let mut vb: Vec<f64> = (0..i)
-                .into_iter()
-                .map(|_| between.sample(&mut rng))
-                .collect();
+            let va: Vec<f64> = (0..i).map(|_| between.sample(&mut rng)).collect();
+            let mut vb: Vec<f64> = (0..i).map(|_| between.sample(&mut rng)).collect();
             // reset half of vb to va
-            for i in 0..i / 2 {
-                vb[i] = va[i];
-            }
+            vb[..(i / 2)].copy_from_slice(&va[..(i / 2)]);
 
             let easy_dist: u32 = va
                 .iter()
@@ -1115,18 +1102,10 @@ mod tests {
         for i in 300..size_test {
             // generer 2 va et vb s des vecteurs<i32> de taille i  avec des valeurs entre -imax et + imax et controler les resultat
             let between = Uniform::<f32>::from(-fmax..fmax);
-            let va: Vec<f32> = (0..i)
-                .into_iter()
-                .map(|_| between.sample(&mut rng))
-                .collect();
-            let mut vb: Vec<f32> = (0..i)
-                .into_iter()
-                .map(|_| between.sample(&mut rng))
-                .collect();
+            let va: Vec<f32> = (0..i).map(|_| between.sample(&mut rng)).collect();
+            let mut vb: Vec<f32> = (0..i).map(|_| between.sample(&mut rng)).collect();
             // reset half of vb to va
-            for i in 0..i / 2 {
-                vb[i] = va[i];
-            }
+            vb[..(i / 2)].copy_from_slice(&va[..(i / 2)]);
 
             let easy_dist: u32 = va
                 .iter()
