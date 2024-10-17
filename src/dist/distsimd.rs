@@ -3,7 +3,7 @@
 //
 // std simd implementations
 //
-use std::simd::{f32x16, u32x16, u64x8};
+use std::simd::{Simd, f32x16, u32x16, u64x8};
 use std::simd::{i32x16, i64x8};
 
 use std::simd::cmp::SimdPartialEq;
@@ -191,6 +191,36 @@ pub(super) fn distance_jaccard_u64_8_simd(va: &[u64], vb: &[u64]) -> f32 {
     return dist as f32 / va.len() as f32;
 } // end of distance_jaccard_u64_8_simd
 
+
+pub(super) fn distance_jaccard_u64_8_simd_popcnt(va: &[u64], vb: &[u64]) -> f32 {
+    assert_eq!(va.len(), vb.len());
+
+    let nb_lanes = 8; // Number of lanes in the SIMD vector
+    let nb_simd = va.len() / nb_lanes;
+    let simd_length = nb_simd * nb_lanes;
+    let mut dist = 0u64;
+
+    // Process chunks using SIMD
+    for (a_chunk, b_chunk) in va.chunks_exact(nb_lanes).zip(vb.chunks_exact(nb_lanes)) {
+        let a = u64x8::from_slice(a_chunk);
+        let b = u64x8::from_slice(b_chunk);
+        let diff = a ^ b; // Bitwise XOR to find differing bits
+
+        // Compute population count for each lane
+        let popcounts = diff.map(|x| x.count_ones() as u64);
+
+        // Sum the population counts
+        dist += popcounts.reduce_sum();
+    }
+
+    // Process any remaining elements
+    for i in simd_length..va.len() {
+        dist += (va[i] ^ vb[i]).count_ones() as u64;
+    }
+
+    // Normalize the distance
+    dist as f32 / (va.len() * 64) as f32
+}
 //=======================================================================================
 
 #[cfg(test)]
@@ -270,6 +300,7 @@ mod tests {
                 .map(|_| between.sample(&mut rng))
                 .collect();
             let simd_dist = distance_jaccard_u64_8_simd(&va, &vb);
+            let simd_dist_popcnt = distance_jaccard_u64_8_simd_popcnt(&va, &vb);
 
             let easy_dist: u64 = va
                 .iter()
@@ -283,6 +314,17 @@ mod tests {
             );
             if (easy_dist - simd_dist).abs() > 1.0e-5 {
                 println!(" jsimd = {:?} , jexact = {:?}", simd_dist, easy_dist);
+                println!("va = {:?}", va);
+                println!("vb = {:?}", vb);
+                std::process::exit(1);
+            }
+
+            println!(
+                "test size {:?} simd  exact = {:?} {:?}",
+                i, simd_dist_popcnt, easy_dist
+            );
+            if (easy_dist - simd_dist_popcnt).abs() > 1.0e-5 {
+                println!(" jsimd = {:?} , jexact = {:?}", simd_dist_popcnt, easy_dist);
                 println!("va = {:?}", va);
                 println!("vb = {:?}", vb);
                 std::process::exit(1);
