@@ -8,6 +8,10 @@ use super::distsimd::*;
 #[cfg(feature = "simdeez_f")]
 use super::disteez::*;
 
+#[cfg(feature = "half")]
+use half::f16;
+use num_traits::Float;
+
 /// The trait describing distance.
 /// For example for the L1 distance
 ///
@@ -21,8 +25,6 @@ use super::disteez::*;
 ///
 ///
 use std::os::raw::*;
-
-use num_traits::float::*;
 
 #[allow(unused)]
 enum DistKind {
@@ -116,6 +118,19 @@ impl Distance<f32> for DistL1 {
     } // end of eval
 } // end impl Distance<f32> for DistL1
 
+// L1 for f16
+#[cfg(feature = "half")]
+impl Distance<f16> for DistL1 {
+    fn eval(&self, va: &[f16], vb: &[f16]) -> f32 {
+        assert_eq!(va.len(), vb.len());
+        va.iter()
+            .zip(vb.iter())
+            .map(|(a, b)| Float::abs(a - b))
+            .sum::<f16>()
+            .to_f32()
+    }
+}
+
 //========================================================================
 
 /// L2 distance : implemented for i32, f64, i64, u32 , u16 , u8 and with Simd avx2 for f32
@@ -181,7 +196,7 @@ impl Distance<f32> for DistL2 {
 
 //=========================================================================
 
-/// Cosine distance : implemented for f32, f64, i64, i32 , u16
+/// Cosine distance : implemented for f16, f32, f64, i64, i32 , u16
 #[derive(Default, Copy, Clone)]
 pub struct DistCosine;
 
@@ -217,6 +232,32 @@ implementCosDistance!(f64);
 implementCosDistance!(i64);
 implementCosDistance!(i32);
 implementCosDistance!(u16);
+
+// Cosine for f16
+#[cfg(feature = "half")]
+impl Distance<f16> for DistCosine {
+    fn eval(&self, va: &[f16], vb: &[f16]) -> f32 {
+        assert_eq!(va.len(), vb.len());
+        let res = va
+            .iter()
+            .zip(vb.iter())
+            .map(|(a, b)| ((a * b), (a * a), (b * b)))
+            .fold((0., 0., 0.), |acc, (ab, aa, bb)| {
+                (
+                    acc.0 + ab.to_f32(),
+                    acc.1 + aa.to_f32(),
+                    acc.2 + bb.to_f32(),
+                )
+            });
+        if res.1 > 0. && res.2 > 0. {
+            let dist_unchecked = 1. - res.0 / (res.1 * res.2).sqrt();
+            assert!(dist_unchecked >= -0.00002);
+            dist_unchecked.max(0.)
+        } else {
+            0.
+        }
+    }
+}
 
 //=========================================================================
 
@@ -290,6 +331,21 @@ impl Distance<f32> for DistDot {
     } // end of eval
 }
 
+// Dot distance for f16
+#[cfg(feature = "half")]
+impl Distance<f16> for DistDot {
+    fn eval(&self, va: &[f16], vb: &[f16]) -> f32 {
+        assert_eq!(va.len(), vb.len());
+        let dot: f32 = va
+            .iter()
+            .zip(vb.iter())
+            .map(|(a, b)| a * b)
+            .sum::<f16>()
+            .to_f32();
+        1. - dot
+    }
+}
+
 pub fn l2_normalize(va: &mut [f32]) {
     let l2norm = va.iter().map(|t| (*t * *t)).sum::<f32>().sqrt();
     if l2norm > 0. {
@@ -357,6 +413,23 @@ impl Distance<f32> for DistHellinger {
     } // end of eval
 }
 
+// Hellinger for f16
+#[cfg(feature = "half")]
+impl Distance<f16> for DistHellinger {
+    fn eval(&self, va: &[f16], vb: &[f16]) -> f32 {
+        assert_eq!(va.len(), vb.len());
+        let mut dist = va
+            .iter()
+            .zip(vb.iter())
+            .map(|(a, b)| a.sqrt() * b.sqrt())
+            .sum::<f16>()
+            .to_f32();
+        assert!(1. - dist >= -0.000001);
+        dist = (1. - dist).max(0.).sqrt();
+        dist
+    }
+}
+
 //=======================================================================================
 
 ///
@@ -416,6 +489,22 @@ impl Distance<f32> for DistJeffreys {
     } // end of eval
 }
 
+// Jeffreys for f16
+#[cfg(feature = "half")]
+impl Distance<f16> for DistJeffreys {
+    fn eval(&self, va: &[f16], vb: &[f16]) -> f32 {
+        assert_eq!(va.len(), vb.len());
+        va.iter()
+            .zip(vb.iter())
+            .map(|(a, b)| {
+                let (a_clamp, b_clamp) = (a.max(f16::MIN), b.max(f16::MIN));
+                (a - b) * (a_clamp / b_clamp).ln()
+            })
+            .sum::<f16>()
+            .to_f32()
+    }
+}
+
 //=======================================================================================
 
 /// Jensen-Shannon distance.  
@@ -451,6 +540,26 @@ macro_rules! implementDistJensenShannon (
 
 implementDistJensenShannon!(f64);
 implementDistJensenShannon!(f32);
+
+/// Jensen-Shannon for f16
+#[cfg(feature = "half")]
+impl Distance<f16> for DistJensenShannon {
+    fn eval(&self, va: &[f16], vb: &[f16]) -> f32 {
+        assert_eq!(va.len(), vb.len());
+        let mut dist = 0_f32;
+        for i in 0..va.len() {
+            let (af, bf) = (va[i].to_f32(), vb[i].to_f32());
+            let mean_ab = 0.5 * (af + bf);
+            if af > 0. {
+                dist += af * (af / mean_ab).ln();
+            }
+            if bf > 0. {
+                dist += bf * (bf / mean_ab).ln();
+            }
+        }
+        (0.5 * dist).sqrt()
+    }
+}
 
 //=======================================================================================
 
@@ -608,6 +717,7 @@ implementJaccardDistance!(u32);
 /// Levenshtein distance. Implemented for u16
 #[derive(Default, Copy, Clone)]
 pub struct DistLevenshtein;
+
 impl Distance<u16> for DistLevenshtein {
     fn eval(&self, a: &[u16], b: &[u16]) -> f32 {
         let len_a = a.len();
@@ -747,7 +857,6 @@ impl<T: Copy + Clone + Sized + Send + Sync, F: Float> Distance<T> for DistPtr<T,
 //=======================================================================================
 
 #[cfg(test)]
-
 mod tests {
     use super::*;
 
@@ -1156,4 +1265,249 @@ mod tests {
         init_log();
         log::info!("I have activated simdeez");
     } // end of test_feature_simd
+
+    #[test]
+    #[cfg(feature = "half")]
+    fn test_feature_half() {
+        init_log();
+        log::info!("I have activated half");
+    } // end of test_feature_half
+
+    #[test]
+    #[cfg(feature = "half")]
+    fn test_l1_f16() {
+        use half::f16;
+
+        let distl1 = DistL1;
+
+        // Convert f32 values to f16
+        let v1: Vec<f16> = vec![f16::from_f32(1.0), f16::from_f32(2.0), f16::from_f32(3.0)];
+        let v2: Vec<f16> = vec![f16::from_f32(2.0), f16::from_f32(2.0), f16::from_f32(3.0)];
+
+        let d1 = Distance::eval(&distl1, &v1, &v2);
+        assert_eq!(d1, 1_f32);
+
+        // Test with more values
+        let v3: Vec<f16> = vec![
+            f16::from_f32(1.5),
+            f16::from_f32(-2.5),
+            f16::from_f32(3.5),
+            f16::from_f32(4.5),
+        ];
+        let v4: Vec<f16> = vec![
+            f16::from_f32(1.0),
+            f16::from_f32(-2.0),
+            f16::from_f32(3.0),
+            f16::from_f32(5.0),
+        ];
+
+        let d2 = distl1.eval(&v3, &v4);
+        let expected = 0.5 + 0.5 + 0.5 + 0.5; // Sum of absolute differences
+        assert!((d2 - expected).abs() < 1e-3);
+    } // end of test_l1_f16
+
+    #[test]
+    #[cfg(feature = "half")]
+    fn test_cosine_f16() {
+        use half::f16;
+
+        let distcos = DistCosine;
+
+        // Simple orthogonal vectors test
+        let v1: Vec<f16> = vec![f16::from_f32(1.0), f16::from_f32(0.0)];
+        let v2: Vec<f16> = vec![f16::from_f32(0.0), f16::from_f32(1.0)];
+
+        let d1 = Distance::eval(&distcos, &v1, &v2);
+        assert!((d1 - 1.0).abs() < 1e-3); // Orthogonal vectors should have distance 1
+
+        // Test with more realistic values
+        let v3: Vec<f16> = vec![
+            f16::from_f32(1.234),
+            f16::from_f32(-1.678),
+            f16::from_f32(1.367),
+        ];
+        let v4: Vec<f16> = vec![
+            f16::from_f32(4.234),
+            f16::from_f32(-6.678),
+            f16::from_f32(10.367),
+        ];
+
+        let d2 = distcos.eval(&v3, &v4);
+
+        // Calculate expected result manually
+        let mut normv1 = 0.0;
+        let mut normv2 = 0.0;
+        let mut prod = 0.0;
+        for i in 0..v3.len() {
+            let a = v3[i].to_f32();
+            let b = v4[i].to_f32();
+            prod += a * b;
+            normv1 += a * a;
+            normv2 += b * b;
+        }
+        let expected = 1.0 - prod / (normv1 * normv2).sqrt();
+
+        assert!((d2 - expected).abs() < 1e-3);
+    } // end of test_cosine_f16
+
+    #[test]
+    #[cfg(feature = "half")]
+    fn test_dot_f16() {
+        use half::f16;
+
+        let distdot = DistDot;
+
+        // Create normalized vectors for testing
+        // For DistDot, vectors should be L2 normalized
+        let v1_raw = vec![1.0f32, 2.0f32, 3.0f32];
+        let v2_raw = vec![4.0f32, 5.0f32, 6.0f32];
+
+        // Normalize vectors
+        let mut v1_norm = v1_raw.clone();
+        let mut v2_norm = v2_raw.clone();
+        l2_normalize(&mut v1_norm);
+        l2_normalize(&mut v2_norm);
+
+        // Convert to f16
+        let v1: Vec<f16> = v1_norm.iter().map(|&x| f16::from_f32(x)).collect();
+        let v2: Vec<f16> = v2_norm.iter().map(|&x| f16::from_f32(x)).collect();
+
+        let d = distdot.eval(&v1, &v2);
+
+        // Calculate expected result manually
+        let dot_product: f32 = v1
+            .iter()
+            .zip(v2.iter())
+            .map(|(a, b)| a.to_f32() * b.to_f32())
+            .sum();
+        let expected = 1.0 - dot_product;
+
+        assert!((d - expected).abs() < 1e-3);
+        assert!(expected >= 0.0); // Dot distance should be non-negative
+    } // end of test_dot_f16
+
+    #[test]
+    #[cfg(feature = "half")]
+    fn test_hellinger_f16() {
+        use half::f16;
+
+        // For Hellinger distance, vectors should be probability distributions
+        // (non-negative and sum to 1)
+        let length = 9;
+        let mut p_data_f32 = Vec::with_capacity(length);
+        let mut q_data_f32 = Vec::with_capacity(length);
+
+        // Create probability distributions
+        for _ in 0..length {
+            p_data_f32.push(1.0 / length as f32);
+            q_data_f32.push(1.0 / length as f32);
+        }
+
+        // Modify p slightly to make it different from q
+        p_data_f32[0] -= 1.0 / (2 * length) as f32;
+        p_data_f32[1] += 1.0 / (2 * length) as f32;
+
+        // Convert to f16
+        let p_data: Vec<f16> = p_data_f32.iter().map(|&x| f16::from_f32(x)).collect();
+        let q_data: Vec<f16> = q_data_f32.iter().map(|&x| f16::from_f32(x)).collect();
+
+        let dist = DistHellinger.eval(&p_data, &q_data);
+
+        // Calculate expected result using the same formula as in test_hellinger
+        let dist_exact_fn = |n: usize| -> f32 {
+            let d1 = (4.0 - (6_f32).sqrt() - (2_f32).sqrt()) / n as f32;
+            d1.sqrt() / (2_f32).sqrt()
+        };
+        let expected = dist_exact_fn(length);
+
+        // Using a larger epsilon due to f16 precision limitations
+        assert!((dist - expected).abs() < 1e-2);
+
+        // Also verify that the result is in a reasonable range
+        assert!(dist > 0.0);
+        assert!(dist < 0.1); // The distance should be small for these similar distributions
+    } // end of test_hellinger_f16
+
+    #[test]
+    #[cfg(feature = "half")]
+    fn test_jeffreys_f16() {
+        use half::f16;
+
+        // For Jeffreys distance, vectors should be probability distributions
+        let length = 9;
+        let mut p_data_f32 = Vec::with_capacity(length);
+        let mut q_data_f32 = Vec::with_capacity(length);
+
+        // Create probability distributions
+        for _ in 0..length {
+            p_data_f32.push(1.0 / length as f32);
+            q_data_f32.push(1.0 / length as f32);
+        }
+
+        // Modify distributions to make them different
+        p_data_f32[0] -= 1.0 / (2 * length) as f32;
+        p_data_f32[1] += 1.0 / (2 * length) as f32;
+        q_data_f32[3] += 1.0 / (2 * length) as f32;
+
+        // Convert to f16
+        let p_data: Vec<f16> = p_data_f32.iter().map(|&x| f16::from_f32(x)).collect();
+        let q_data: Vec<f16> = q_data_f32.iter().map(|&x| f16::from_f32(x)).collect();
+
+        let dist_eval = DistJeffreys.eval(&p_data, &q_data);
+
+        // Calculate expected result manually
+        let mut dist_test = 0.0;
+        for i in 0..length {
+            let p = p_data_f32[i];
+            let q = q_data_f32[i];
+            dist_test += (p - q) * (p.max(M_MIN) / q.max(M_MIN)).ln();
+        }
+
+        assert!((dist_eval - dist_test).abs() < 1e-2); // Using a larger epsilon due to f16 precision
+    } // end of test_jeffreys_f16
+
+    #[test]
+    #[cfg(feature = "half")]
+    fn test_jensenshannon_f16() {
+        use half::f16;
+
+        // For Jensen-Shannon distance, vectors should be probability distributions
+        let length = 9;
+        let mut p_data_f32 = Vec::with_capacity(length);
+        let mut q_data_f32 = Vec::with_capacity(length);
+
+        // Create probability distributions
+        for _ in 0..length {
+            p_data_f32.push(1.0 / length as f32);
+            q_data_f32.push(1.0 / length as f32);
+        }
+
+        // Modify distributions to make them different
+        p_data_f32[0] -= 1.0 / (2 * length) as f32;
+        p_data_f32[1] += 1.0 / (2 * length) as f32;
+        q_data_f32[3] += 1.0 / (2 * length) as f32;
+
+        // Convert to f16
+        let p_data: Vec<f16> = p_data_f32.iter().map(|&x| f16::from_f32(x)).collect();
+        let q_data: Vec<f16> = q_data_f32.iter().map(|&x| f16::from_f32(x)).collect();
+
+        let dist_eval = DistJensenShannon.eval(&p_data, &q_data);
+
+        // Calculate expected result manually
+        let mut dist_test = 0.0;
+        for i in 0..length {
+            let p = p_data_f32[i];
+            let q = q_data_f32[i];
+            let mean_ab = 0.5 * (p + q);
+            if p > 0.0 {
+                dist_test += p * (p / mean_ab).ln();
+            }
+            if q > 0.0 {
+                dist_test += q * (q / mean_ab).ln();
+            }
+        }
+        let expected = (0.5 * dist_test).sqrt();
+
+        assert!((dist_eval - expected).abs() < 1e-2); // Using a larger epsilon due to f16 precision
+    } // end of test_jensenshannon_f16
 } // end of module tests
