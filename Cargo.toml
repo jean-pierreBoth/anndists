@@ -57,6 +57,9 @@ anyhow = { version = "1.0" }
 # x86_64 simd stuff , enabled by  simdeez_f feature 
 simdeez = { version = "1.0", optional = true }
 
+# half precision float
+half = { version = "2.4", features = ["num-traits"] }
+
 
 # for benchmark reading, so the lbrary do not depend on hdf5 nor ndarray
 [dev-dependencies]
@@ -70,3 +73,5 @@ default = []
 stdsimd = []
 # feature for simd on stable for x86*
 simdeez_f = ["simdeez"]
+# feature for f16 using half crate
+half = []
