@@ -98,11 +98,11 @@ impl Distance<f32> for DistL1 {
         if #[cfg(feature = "simdeez_f")] {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))] {
                 if is_x86_feature_detected!("avx2") {
-                    return unsafe {distance_l1_f32_avx2(va,vb)};
+                    unsafe {distance_l1_f32_avx2(va,vb)}
                 }
                 else {
                     assert_eq!(va.len(), vb.len());
-                    va.iter().zip(vb.iter()).map(|t| (*t.0 as f32- *t.1 as f32).abs()).sum()
+                    va.iter().zip(vb.iter()).map(|t| (*t.0 - *t.1).abs()).sum()
                 }
             }
         }
@@ -163,10 +163,10 @@ impl Distance<f32> for DistL2 {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
                 if is_x86_feature_detected!("avx2") {
-                    return unsafe { distance_l2_f32_avx2(va, vb) };
+                    unsafe { distance_l2_f32_avx2(va, vb) }
                 }
                 else {
-                    return scalar_l2_f32(&va, &vb);
+                    scalar_l2_f32(va, vb)
                 }
             }
             } else if #[cfg(feature = "stdsimd")] {
@@ -272,7 +272,7 @@ impl Distance<f32> for DistDot {
                 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
                 {
                     if is_x86_feature_detected!("avx2") {
-                        return unsafe { distance_dot_f32_avx2(va, vb) };
+                        unsafe { distance_dot_f32_avx2(va, vb) }
                     } else if is_x86_feature_detected!("sse2") {
                         return unsafe { distance_dot_f32_sse2(va, vb) };
                     }
@@ -407,12 +407,10 @@ impl Distance<f32> for DistJeffreys {
                 }
             }
         }
-        let dist = va
-            .iter()
+        va.iter()
             .zip(vb.iter())
             .map(|t| (*t.0 - *t.1) * ((*t.0).max(M_MIN) / (*t.1).max(M_MIN)).ln())
-            .fold(0., |acc, t| (acc + t));
-        dist
+            .fold(0., |acc, t| (acc + t))
     } // end of eval
 }
 
@@ -1041,7 +1039,7 @@ mod tests {
     }
 
     #[allow(unused)]
-    use rand::distributions::{Distribution, Uniform};
+    use rand::distr::{Distribution, Uniform};
 
     // to be run with and without simdeez_f
     #[test]
@@ -1050,10 +1048,10 @@ mod tests {
 
         let size_test = 500;
         let fmax: f64 = 3.;
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         for i in 300..size_test {
             // generer 2 va et vb s des vecteurs<i32> de taille i  avec des valeurs entre -imax et + imax et controler les resultat
-            let between = Uniform::<f64>::from(-fmax..fmax);
+            let between = Uniform::<f64>::try_from(-fmax..fmax).unwrap();
             let va: Vec<f64> = (0..i).map(|_| between.sample(&mut rng)).collect();
             let mut vb: Vec<f64> = (0..i).map(|_| between.sample(&mut rng)).collect();
             // reset half of vb to va
@@ -1098,10 +1096,10 @@ mod tests {
 
         let size_test = 500;
         let fmax: f32 = 3.;
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         for i in 300..size_test {
             // generer 2 va et vb s des vecteurs<i32> de taille i  avec des valeurs entre -imax et + imax et controler les resultat
-            let between = Uniform::<f32>::from(-fmax..fmax);
+            let between = Uniform::<f32>::try_from(-fmax..fmax).unwrap();
             let va: Vec<f32> = (0..i).map(|_| between.sample(&mut rng)).collect();
             let mut vb: Vec<f32> = (0..i).map(|_| between.sample(&mut rng)).collect();
             // reset half of vb to va

@@ -198,7 +198,7 @@ pub(super) fn distance_jaccard_u64_8_simd(va: &[u64], vb: &[u64]) -> f32 {
 mod tests {
 
     use super::*;
-    use rand::distributions::{Distribution, Uniform};
+    use rand::distr::{Distribution, Uniform};
 
     fn init_log() -> u64 {
         let mut builder = env_logger::Builder::from_default_env();
@@ -215,10 +215,10 @@ mod tests {
         //
         let size_test = 500;
         let imax = 3;
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         for i in 4..size_test {
             // generer 2 va et vb s des vecteurs<i32> de taille i  avec des valeurs entre -imax et + imax et controler les resultat
-            let between = Uniform::<u32>::from(0..imax);
+            let between = Uniform::<u32>::try_from(0..imax).unwrap();
             let va: Vec<u32> = (0..i)
                 .into_iter()
                 .map(|_| between.sample(&mut rng))
@@ -257,10 +257,10 @@ mod tests {
         //
         let size_test = 500;
         let imax = 3;
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         for i in 4..size_test {
             // generer 2 va et vb s des vecteurs<i32> de taille i  avec des valeurs entre -imax et + imax et controler les resultat
-            let between = Uniform::<u64>::from(0..imax);
+            let between = Uniform::<u64>::try_from(0..imax).unwrap();
             let va: Vec<u64> = (0..i)
                 .into_iter()
                 .map(|_| between.sample(&mut rng))
@@ -297,12 +297,12 @@ mod tests {
         log::info!("testing test_simd_hamming_f32 with packed_simd_2");
         //
         let size_test = 500;
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         for i in 4..size_test {
             // generer 2 va et vb s des vecteurs<i32> de taille i  avec des valeurs entre -imax et + imax et controler les resultat
             let begin = 0.;
             let end = 1.;
-            let between = Uniform::<f32>::from(begin..end);
+            let between = Uniform::<f32>::try_from(begin..end).unwrap();
             let va: Vec<f32> = (0..i)
                 .into_iter()
                 .map(|_| between.sample(&mut rng))

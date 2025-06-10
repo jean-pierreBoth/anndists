@@ -52,7 +52,9 @@ To compile this crate on a M1 chip just do not activate this feature.
 The speed is illustated in the [hnsw_rs](https://crates.io/crates/hnsw_rs), [annembed](https://crates.io/crates/annembed) crates
 
 
+## Changes
 
+Version 0.1.3 switched to edition=2024
 
 ## Contributions
 
