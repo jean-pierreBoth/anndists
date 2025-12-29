@@ -1,11 +1,11 @@
 [package]
 name = "anndists"
-version = "0.1.3"
+version = "0.1.4"
 authors = ["jeanpierre.both@gmail.com"]
 description = "some distances used in Ann related crates"
 license = "MIT/Apache-2.0"
 readme = "README.md"
-keywords = ["algorithms", "distances", "ann"]
+keywords = ["distances", "ann"]
 repository = "https://github.com/jean-pierreBoth/anndists"
 documentation = "https://docs.rs/anndists"
 edition = "2024"
@@ -34,7 +34,7 @@ path = "src/lib.rs"
 cfg-if = { version = "1.0" }
 
 # for //
-rayon = { version = "1.10" }
+rayon = { version = "1.11" }
 num_cpus = { version = "1.17" }
 
 cpu-time = { version = "1.0" }

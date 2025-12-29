@@ -3,7 +3,7 @@
 //
 // std simd implementations
 //
-use std::simd::{f32x16, u32x16, u64x8};
+use std::simd::{f32x16, u16x32, u32x16, u64x8};
 use std::simd::{i32x16, i64x8};
 
 use std::simd::cmp::SimdPartialEq;
@@ -142,6 +142,31 @@ pub(super) fn distance_jaccard_u32_16_simd(va: &[u32], vb: &[u32]) -> f32 {
     }
     return dist as f32 / va.len() as f32;
 } // end of distance_jaccard_u32_simd
+
+pub(super) fn distance_jaccard_u16_32_simd(va: &[u16], vb: &[u16]) -> f32 {
+    assert_eq!(va.len(), vb.len());
+
+    let nb_lanes = u16x32::LEN; // 32
+    let nb_simd = va.len() / nb_lanes;
+    let simd_length = nb_simd * nb_lanes;
+
+    // Use bitmask popcount to avoid per-lane accumulator overflow.
+    let dist_simd: u32 = va
+        .chunks_exact(nb_lanes)
+        .map(u16x32::from_slice)
+        .zip(vb.chunks_exact(nb_lanes).map(u16x32::from_slice))
+        .map(|(a, b)| a.simd_ne(b).to_bitmask().count_ones())
+        .sum();
+
+    let mut dist: u32 = dist_simd;
+
+    // residual
+    for i in simd_length..va.len() {
+        dist += if va[i] != vb[i] { 1 } else { 0 };
+    }
+
+    dist as f32 / va.len() as f32
+}
 
 //
 pub(super) fn distance_jaccard_f32_16_simd(va: &[f32], vb: &[f32]) -> f32 {
@@ -335,4 +360,37 @@ mod tests {
             }
         }
     } // end of test_simd_hamming_f32
+
+    #[test]
+    fn test_simd_hamming_u16() {
+        init_log();
+        log::info!("testing test_simd_hamming_u16 with std::simd");
+
+        let size_test = 500usize;
+        let imax: u16 = 7;
+        let mut rng = rand::rng();
+
+        for n in 4..size_test {
+            let between = Uniform::<u16>::try_from(0..imax).unwrap();
+            let va: Vec<u16> = (0..n).map(|_| between.sample(&mut rng)).collect();
+            let vb: Vec<u16> = (0..n).map(|_| between.sample(&mut rng)).collect();
+
+            let simd_dist = distance_jaccard_u16_32_simd(&va, &vb);
+
+            let easy_dist: u32 = va
+                .iter()
+                .zip(vb.iter())
+                .map(|(a, b)| if a != b { 1 } else { 0 })
+                .sum();
+            let easy = easy_dist as f32 / va.len() as f32;
+
+            if (easy - simd_dist).abs() > 1.0e-5 {
+                println!(
+                    "u16 simd mismatch n={}: simd={} easy={}",
+                    n, simd_dist, easy
+                );
+                std::process::exit(1);
+            }
+        }
+    }
 }

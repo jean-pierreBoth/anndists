@@ -291,7 +291,7 @@ impl Distance<f32> for DistDot {
 }
 
 pub fn l2_normalize(va: &mut [f32]) {
-    let l2norm = va.iter().map(|t| (*t * *t)).sum::<f32>().sqrt();
+    let l2norm = va.iter().map(|t| *t * *t).sum::<f32>().sqrt();
     if l2norm > 0. {
         for v in va {
             *v /= l2norm;
@@ -349,7 +349,7 @@ impl Distance<f32> for DistHellinger {
             .iter()
             .zip(vb.iter())
             .map(|t| ((*t.0) * (*t.1)).sqrt())
-            .fold(0., |acc, t| (acc + t));
+            .fold(0., |acc, t| acc + t);
         // if too far away from >= panic else reset!
         assert!(1. - dist >= -0.000001);
         dist = (1. - dist).max(0.).sqrt();
@@ -410,7 +410,7 @@ impl Distance<f32> for DistJeffreys {
         va.iter()
             .zip(vb.iter())
             .map(|t| (*t.0 - *t.1) * ((*t.0).max(M_MIN) / (*t.1).max(M_MIN)).ln())
-            .fold(0., |acc, t| (acc + t))
+            .fold(0., |acc, t| acc + t)
     } // end of eval
 }
 
@@ -551,8 +551,19 @@ impl Distance<u64> for DistHamming {
     } // end of eval
 } // end implementation Distance<u64>
 
+//
+
+#[cfg(feature = "stdsimd")]
+impl Distance<u16> for DistHamming {
+    fn eval(&self, va: &[u16], vb: &[u16]) -> f32 {
+        return distance_jaccard_u16_32_simd(va, vb);
+    }
+}
 // i32 is implmeented by simd
+
 implementHammingDistance!(u8);
+
+#[cfg(not(feature = "stdsimd"))]
 implementHammingDistance!(u16);
 
 #[cfg(not(feature = "stdsimd"))]
