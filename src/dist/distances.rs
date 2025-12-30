@@ -98,7 +98,7 @@ impl Distance<f32> for DistL1 {
         if #[cfg(feature = "simdeez_f")] {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))] {
                 if is_x86_feature_detected!("avx2") {
-                    unsafe {distance_l1_f32_avx2(va,vb)}
+                    distance_l1_f32_simdeez(va,vb)
                 }
                 else {
                     assert_eq!(va.len(), vb.len());
@@ -163,7 +163,7 @@ impl Distance<f32> for DistL2 {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
                 if is_x86_feature_detected!("avx2") {
-                    unsafe { distance_l2_f32_avx2(va, vb) }
+                    distance_l2_f32_simdeez(va, vb)
                 }
                 else {
                     scalar_l2_f32(va, vb)
@@ -272,9 +272,9 @@ impl Distance<f32> for DistDot {
                 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
                 {
                     if is_x86_feature_detected!("avx2") {
-                        unsafe { distance_dot_f32_avx2(va, vb) }
+                        distance_dot_f32_simdeez(va, vb)
                     } else if is_x86_feature_detected!("sse2") {
-                        return unsafe { distance_dot_f32_sse2(va, vb) };
+                        distance_dot_f32_simdeez(va, vb)
                     }
                     else {
                         return scalar_dot_f32(va, vb);
@@ -341,10 +341,12 @@ impl Distance<f32> for DistHellinger {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
                 if is_x86_feature_detected!("avx2") {
-                    return unsafe { distance_hellinger_f32_avx2(va, vb) };
+                    //    log::debug!("DistHellinger f32, using simdeez implementation");
+                    return distance_hellinger_f32_simdeez(va, vb);
                 }
             }
         }
+        //    log::debug!("DistHellinger f32, using non simd implementation");
         let mut dist = va
             .iter()
             .zip(vb.iter())
@@ -403,7 +405,7 @@ impl Distance<f32> for DistJeffreys {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
                 if is_x86_feature_detected!("avx2") {
-                    return unsafe { distance_jeffreys_f32_avx2(va, vb) };
+                    return distance_jeffreys_f32_simdeez(va, vb);
                 }
             }
         }
@@ -482,7 +484,7 @@ impl Distance<i32> for DistHamming {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
                 if is_x86_feature_detected!("avx2") {
-                    return unsafe { distance_hamming_i32_avx2(va, vb) };
+                    return distance_hamming_i32_simdeez(va, vb);
                 }
             }
         }
@@ -975,6 +977,8 @@ mod tests {
 
     #[test]
     fn test_hellinger() {
+        init_log();
+        //
         let length = 9;
         let mut p_data = Vec::with_capacity(length);
         let mut q_data = Vec::with_capacity(length);
@@ -1001,6 +1005,7 @@ mod tests {
 
     #[test]
     fn test_jeffreys() {
+        init_log();
         // this essentially test av2 implementation for f32
         let length = 19;
         let mut p_data: Vec<f32> = Vec::with_capacity(length);

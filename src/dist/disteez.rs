@@ -3,280 +3,256 @@
 //!
 
 #![cfg(feature = "simdeez_f")]
-use simdeez::avx2::*;
-use simdeez::sse2::*;
 use simdeez::*;
+use simdeez::{prelude::*, simd_runtime_generate};
 
 use super::distances::M_MIN;
 
-pub(super) unsafe fn distance_l1_f32<S: Simd>(va: &[f32], vb: &[f32]) -> f32 {
-    assert_eq!(va.len(), vb.len());
-    //
-    let mut dist: f32;
-    let nb_simd = va.len() / S::VF32_WIDTH;
-    let simd_length = nb_simd * S::VF32_WIDTH;
-    let mut i = 0;
-    unsafe {
-        let mut dist_simd = S::setzero_ps();
+simd_runtime_generate!(
+    pub(super) fn distance_l1_f32_simdeez(va: &[f32], vb: &[f32]) -> f32 {
+        assert_eq!(va.len(), vb.len());
         //
-        while i < simd_length {
-            let a = S::loadu_ps(&va[i]);
-            let b = S::loadu_ps(&vb[i]);
-            let delta = S::abs_ps(a - b);
+        let mut dist: f32;
+        let mut a = &va[..va.len()];
+        let mut b = &vb[..va.len()];
+        let mut dist_simd = S::Vf32::zeroes();
+        //
+        while a.len() >= S::Vf32::WIDTH {
+            let xa = S::Vf32::load_from_slice(&a);
+            let xb = S::Vf32::load_from_slice(&b);
+            let delta = S::Vf32::abs(xa - xb);
             dist_simd += delta;
             //
-            i += S::VF32_WIDTH;
+            a = &a[S::Vf32::WIDTH..];
+            b = &b[S::Vf32::WIDTH..];
         }
-        dist = S::horizontal_add_ps(dist_simd);
+        // horizontal add
+        dist = S::Vf32::horizontal_add(dist_simd);
+        // remaining
+        for i in 0..va.len() {
+            //        log::debug!("distance_l1_f32, i {:?} len {:?} ", i, va.len());
+            dist += (a[i] - b[i]).abs();
+        }
+        assert!(dist >= 0.);
+        dist
     }
-    for i in simd_length..va.len() {
-        //        log::debug!("distance_l1_f32, i {:?} len {:?} nb_simd {:?} VF32_WIDTH {:?}", i, va.len(), nb_simd, S::VF32_WIDTH);
-        dist += (va[i] - vb[i]).abs();
-    }
-    assert!(dist >= 0.);
-    dist
-} // end of distance_l1_f32
-
-#[target_feature(enable = "avx2")]
-pub(super) fn distance_l1_f32_avx2(va: &[f32], vb: &[f32]) -> f32 {
-    unsafe { distance_l1_f32::<Avx2>(va, vb) }
-}
+);
 
 //========================================================================
 
-pub(super) unsafe fn distance_l2_f32<S: Simd>(va: &[f32], vb: &[f32]) -> f32 {
-    //
-    assert_eq!(va.len(), vb.len());
-    //
-    let mut dist: f32;
-    let nb_simd = va.len() / S::VF32_WIDTH;
-    let simd_length = nb_simd * S::VF32_WIDTH;
-    unsafe {
-        let mut dist_simd = S::setzero_ps();
-        let mut i = 0;
-        while i < simd_length {
-            let a = S::loadu_ps(&va[i]);
-            let b = S::loadu_ps(&vb[i]);
-            let mut delta = a - b;
+simd_runtime_generate!(
+    pub(super) fn distance_l2_f32_simdeez(va: &[f32], vb: &[f32]) -> f32 {
+        //
+        assert_eq!(va.len(), vb.len());
+        //
+        let mut dist: f32;
+        let mut a = &va[..va.len()];
+        let mut b = &vb[..va.len()];
+        let mut dist_simd = S::Vf32::zeroes();
+
+        while a.len() >= S::Vf32::WIDTH {
+            let xa = S::Vf32::load_from_slice(&a);
+            let xb = S::Vf32::load_from_slice(&b);
+            let mut delta = xa - xb;
             delta *= delta;
             dist_simd += delta;
-            //
-            i += S::VF32_WIDTH;
+            // shift
+            a = &a[S::Vf32::WIDTH..];
+            b = &b[S::Vf32::WIDTH..];
         }
-        dist = S::horizontal_add_ps(dist_simd);
+        //
+        dist = S::Vf32::horizontal_add(dist_simd);
+        // remaining
+        for i in 0..va.len() {
+            dist += (a[i] - b[i]) * (a[i] - b[i]);
+        }
+        assert!(dist >= 0.);
+        dist.sqrt()
     }
-    for i in simd_length..va.len() {
-        dist += (va[i] - vb[i]) * (va[i] - vb[i]);
-    }
-    assert!(dist >= 0.);
-    dist.sqrt()
-} // end of distance_l2_f32
-
-#[target_feature(enable = "avx2")]
-pub(super) fn distance_l2_f32_avx2(va: &[f32], vb: &[f32]) -> f32 {
-    unsafe { distance_l2_f32::<Avx2>(va, vb) }
-}
+);
 
 //======================================================================
 
-pub(super) unsafe fn distance_dot_f32<S: Simd>(va: &[f32], vb: &[f32]) -> f32 {
-    //
-    assert_eq!(va.len(), vb.len());
-    //
-    let mut i = 0;
-    let mut dot: f32;
-    let nb_simd = va.len() / S::VF32_WIDTH;
-    let simd_length = nb_simd * S::VF32_WIDTH;
-    unsafe {
-        let mut dot_simd = S::setzero_ps();
-        while i < simd_length {
-            let a = S::loadu_ps(&va[i]);
-            let b = S::loadu_ps(&vb[i]);
-            let delta = a * b;
+simd_runtime_generate!(
+    pub(super) fn distance_dot_f32_simdeez(va: &[f32], vb: &[f32]) -> f32 {
+        //
+        assert_eq!(va.len(), vb.len());
+        //
+        let mut dot: f32;
+        let mut a = &va[..va.len()];
+        let mut b = &vb[..va.len()];
+        let mut dot_simd = S::Vf32::zeroes();
+        //
+        while a.len() >= S::Vf32::WIDTH {
+            let xa = S::Vf32::load_from_slice(&a);
+            let xb = S::Vf32::load_from_slice(&b);
+            let delta = xa * xb;
             dot_simd += delta;
-            //
-            i += S::VF32_WIDTH;
+            // shift
+            a = &a[S::Vf32::WIDTH..];
+            b = &b[S::Vf32::WIDTH..];
         }
-        dot = S::horizontal_add_ps(dot_simd);
+        dot = S::Vf32::horizontal_add(dot_simd);
+        //
+        for i in 0..a.len() {
+            dot += a[i] * b[i];
+        }
+        assert!(dot <= 1.000002);
+        (1. - dot).max(0.)
     }
-    for i in simd_length..va.len() {
-        dot += va[i] * vb[i];
-    }
-    assert!(dot <= 1.000002);
-    (1. - dot).max(0.)
-} // end of distance_dot_f32
-
-#[target_feature(enable = "avx2")]
-pub(super) fn distance_dot_f32_avx2(va: &[f32], vb: &[f32]) -> f32 {
-    unsafe { distance_dot_f32::<Avx2>(va, vb) }
-}
-
-#[target_feature(enable = "sse2")]
-pub(super) fn distance_dot_f32_sse2(va: &[f32], vb: &[f32]) -> f32 {
-    unsafe { distance_dot_f32::<Sse2>(va, vb) }
-}
+);
 
 //============================================================================
 
-pub(super) unsafe fn distance_hellinger_f32<S: Simd>(va: &[f32], vb: &[f32]) -> f32 {
-    assert_eq!(va.len(), vb.len());
-    //
-    let mut i = 0;
-    let nb_simd = va.len() / S::VF32_WIDTH;
-    let simd_length = nb_simd * S::VF32_WIDTH;
-    let mut dist: f32;
-    //
-    unsafe {
-        let mut dist_simd = S::setzero_ps();
-        while i < simd_length {
-            let a = S::loadu_ps(&va[i]);
-            let b = S::loadu_ps(&vb[i]);
-            let prod = a * b;
-            let prod_s = S::sqrt_ps(prod);
+simd_runtime_generate!(
+    pub(super) fn distance_hellinger_f32_simdeez(va: &[f32], vb: &[f32]) -> f32 {
+        assert_eq!(va.len(), vb.len());
+        //
+        log::debug!("in disteez::distance_hellinger_f32_simdeez");
+        //
+        let mut a = &va[..va.len()];
+        let mut b = &vb[..va.len()];
+        let mut dist_simd = S::Vf32::zeroes();
+        let mut dist: f32;
+        //
+        while a.len() >= S::Vf32::WIDTH {
+            let xa = S::Vf32::load_from_slice(&a);
+            let xb = S::Vf32::load_from_slice(&b);
+            let prod = xa * xb;
+            let prod_s = S::Vf32::sqrt(prod);
             dist_simd += prod_s;
-            //
-            i += S::VF32_WIDTH;
+            // shift
+            a = &a[S::Vf32::WIDTH..];
+            b = &b[S::Vf32::WIDTH..];
         }
-        dist = S::horizontal_add_ps(dist_simd);
-    }
-    for i in simd_length..va.len() {
-        dist += va[i].sqrt() * vb[i].sqrt();
-    }
-    assert!(1. - dist >= -0.000001);
-    dist = (1. - dist).max(0.).sqrt();
-    dist
-} // end of distance_hellinger_f32
+        dist = S::Vf32::horizontal_add(dist_simd);
 
-#[target_feature(enable = "avx2")]
-pub(super) fn distance_hellinger_f32_avx2(va: &[f32], vb: &[f32]) -> f32 {
-    unsafe { distance_hellinger_f32::<Avx2>(va, vb) }
-}
+        for i in 0..a.len() {
+            dist += a[i].sqrt() * b[i].sqrt();
+        }
+        assert!(1. - dist >= -0.000001);
+        dist = (1. - dist).max(0.).sqrt();
+        dist
+    }
+);
 
 //=============================================================================
 
-pub(super) unsafe fn distance_jeffreys_f32<S: Simd>(va: &[f32], vb: &[f32]) -> f32 {
-    //
-    let mut i = 0;
-    let mut dist: f32;
-    let mut logslice = Vec::<f32>::with_capacity(S::VF32_WIDTH);
-    let nb_simd = va.len() / S::VF32_WIDTH;
-    let simd_length = nb_simd * S::VF32_WIDTH;
-    unsafe {
-        let mut dist_simd = S::setzero_ps();
-        while i < simd_length {
-            let a = S::loadu_ps(&va[i]);
-            let b = S::loadu_ps(&vb[i]);
-            let delta = a - b;
-            for j in 0..S::VF32_WIDTH {
+simd_runtime_generate!(
+    pub(super) fn distance_jeffreys_f32_simdeez(va: &[f32], vb: &[f32]) -> f32 {
+        //
+        log::debug!("in disteez::distance_jeffreys_f32_simdeez");
+        //
+        let mut a = &va[..va.len()];
+        let mut b = &vb[..va.len()];
+        let mut logslice = Vec::<f32>::with_capacity(S::Vf32::WIDTH);
+        let mut dist_simd = S::Vf32::zeroes();
+        let mut dist: f32;
+        //
+        while a.len() >= S::Vf32::WIDTH {
+            let xa = S::Vf32::load_from_slice(&a);
+            let xb = S::Vf32::load_from_slice(&b);
+            let delta = xa - xb;
+            for j in 0..S::Vf32::WIDTH {
                 // take care of zeros!
-                logslice.push((va[i + j].max(M_MIN) / vb[i + j].max(M_MIN)).ln());
+                logslice.push((xa[j].max(M_MIN) / xb[j].max(M_MIN)).ln());
             }
-            let prod_s = delta * S::loadu_ps(&logslice.as_slice()[0]);
+            let prod_s = delta * S::Vf32::load_from_slice_exact(&logslice.as_slice()).unwrap();
             dist_simd += prod_s;
             logslice.clear();
-            //
-            i += S::VF32_WIDTH;
+            // shift
+            a = &a[S::Vf32::WIDTH..];
+            b = &b[S::Vf32::WIDTH..];
         }
-        dist = S::horizontal_add_ps(dist_simd);
-    }
-    for i in simd_length..va.len() {
-        if vb[i] > 0. {
-            dist += (va[i] - vb[i]) * (va[i].max(M_MIN) / vb[i].max(M_MIN)).ln();
+        dist = S::Vf32::horizontal_add(dist_simd);
+        // remaining
+        for i in 0..a.len() {
+            if vb[i] > 0. {
+                dist += (a[i] - b[i]) * (a[i].max(M_MIN) / b[i].max(M_MIN)).ln();
+            }
         }
+        dist
     }
-    dist
-} // end of distance_hellinger_f32
+);
 
-#[target_feature(enable = "avx2")]
-pub(super) fn distance_jeffreys_f32_avx2(va: &[f32], vb: &[f32]) -> f32 {
-    unsafe { distance_jeffreys_f32::<Avx2>(va, vb) }
-}
-
-//=================================================================
-
-#[target_feature(enable = "avx2")]
-pub(super) unsafe fn distance_hamming_i32_avx2(va: &[i32], vb: &[i32]) -> f32 {
-    unsafe { distance_hamming_i32::<Avx2>(va, vb) }
-}
-
-pub(super) unsafe fn distance_hamming_i32<S: Simd>(va: &[i32], vb: &[i32]) -> f32 {
-    assert_eq!(va.len(), vb.len());
-    //
-    //
-    let mut dist: i32;
-    let nb_simd = va.len() / S::VI32_WIDTH;
-    let simd_length = nb_simd * S::VI32_WIDTH;
-    let mut simd_res: Vec<i32> = (0..S::VI32_WIDTH).map(|_| 0).collect();
-    let mut i = 0;
-    unsafe {
-        let mut dist_simd = S::setzero_epi32();
-        while i < simd_length {
-            let a = S::loadu_epi32(&va[i]);
-            let b = S::loadu_epi32(&vb[i]);
-            let delta = S::cmpneq_epi32(a, b);
-            dist_simd = S::add_epi32(dist_simd, delta);
-            //
-            i += S::VI32_WIDTH;
+simd_runtime_generate!(
+    pub(super) fn distance_hamming_i32_simdeez(va: &[i32], vb: &[i32]) -> f32 {
+        assert_eq!(va.len(), vb.len());
+        //
+        log::debug!(" in disteez::distance_hamming_i32_simdeez");
+        //
+        let mut a = &va[..va.len()];
+        let mut b = &vb[..va.len()];
+        //
+        let mut dist: i32;
+        let mut simd_res: Vec<i32> = (0..S::Vi32::WIDTH).map(|_| 0).collect();
+        //
+        let mut dist_simd = S::Vi32::zeroes();
+        while a.len() >= S::Vf32::WIDTH {
+            let xa = S::Vi32::load_from_slice(&a);
+            let xb = S::Vi32::load_from_slice(&b);
+            let delta = S::Vi32::cmp_neq(xa, xb);
+            dist_simd += delta;
+            // shift
+            a = &a[S::Vf32::WIDTH..];
+            b = &b[S::Vf32::WIDTH..];
         }
         // get the sum of value in dist
-        S::storeu_epi32(&mut simd_res[0], dist_simd);
+        dist_simd.copy_to_slice(&mut simd_res);
 
         dist = simd_res.into_iter().sum();
+        //
+        // Beccause simd returns 0xFFFF... when neq true and 0 else
+        dist = -dist;
+        // add the residue
+        for i in 0..a.len() {
+            dist += if a[i] != b[i] { 1 } else { 0 }
+        }
+        dist as f32 / va.len() as f32
     }
-    // Beccause simd returns 0xFFFF... when neq true and 0 else
-    dist = -dist;
-    // add the residue
-    for i in simd_length..va.len() {
-        dist += if va[i] != vb[i] { 1 } else { 0 }
-    }
-    dist as f32 / va.len() as f32
-} // end of distance_hamming_i32
+);
 
-#[allow(unused)]
-#[target_feature(enable = "avx2")]
-pub(super) fn distance_hamming_f64_avx2(va: &[f64], vb: &[f64]) -> f32 {
-    unsafe { distance_hamming_f64::<Avx2>(va, vb) }
-}
-
-/// special implementation for f64 exclusively in the context of SuperMinHash algorithm
-#[allow(unused)]
-pub(super) unsafe fn distance_hamming_f64<S: Simd>(va: &[f64], vb: &[f64]) -> f32 {
-    assert_eq!(va.len(), vb.len());
-    //
-    let nb_simd = va.len() / S::VF64_WIDTH;
-    let simd_length = nb_simd * S::VF64_WIDTH;
-    let mut simd_res: Vec<i64> = (0..S::VF64_WIDTH).map(|_| 0).collect();
-    //
-    unsafe {
-        let mut dist_simd = S::setzero_epi64();
+// special implementation for f64 exclusively in the context of SuperMinHash algorithm
+simd_runtime_generate!(
+    pub(super) fn distance_hamming_f64(va: &[f64], vb: &[f64]) -> f32 {
+        assert_eq!(va.len(), vb.len());
+        //
+        log::debug!(" in disteez::distance_hamming_f64");
+        //
+        let mut a = &va[..va.len()];
+        let mut b = &vb[..va.len()];
+        let mut simd_res: Vec<i64> = (0..S::Vf64::WIDTH).map(|_| 0).collect();
+        //
+        let mut dist_simd = S::Vi64::zeroes();
         //    log::debug!("initial simd_res : {:?}", dist_simd);
-        let mut i = 0;
-        while i < simd_length {
-            let a = S::loadu_pd(&va[i]);
-            let b = S::loadu_pd(&vb[i]);
-            let delta = S::cmpneq_pd(a, b);
-            let delta_i = S::castpd_epi64(delta);
+        while a.len() >= S::Vf64::WIDTH {
+            let xa = S::Vf64::load_from_slice(&a);
+            let xb = S::Vf64::load_from_slice(&b);
+            let delta = S::Vf64::cmp_neq(xa, xb);
+            let delta_i = delta.bitcast_i64();
             //        log::debug!("delta_i : , {:?}", delta_i);
             // cast to i64 to transform the 0xFFFFF.... to -1
-            dist_simd = S::add_epi64(dist_simd, delta_i);
-            //
-            i += S::VF64_WIDTH;
+            dist_simd += delta_i;
+            // shift
+            a = &a[S::Vf64::WIDTH..];
+            b = &b[S::Vf64::WIDTH..];
         }
         // get the sum of value in dist
         //    log::trace!("simd_res : {:?}", dist_simd);
-        S::storeu_epi64(&mut simd_res[0], dist_simd);
+        dist_simd.copy_to_slice(&mut simd_res);
+
+        // cmp_neq returns 0xFFFFFFFFFF if true and 0 else, we need to transform 0xFFFFFFF... to 1
+        simd_res.iter_mut().for_each(|x| *x = -*x);
+        //    log::debug!("simd_res : {:?}", simd_res);
+        let mut dist: i64 = simd_res.into_iter().sum();
+        // Beccause simd returns 0xFFFF... when neq true and 0 else
+        // add the residue
+        for i in 0..a.len() {
+            dist += if a[i] != b[i] { 1 } else { 0 }
+        }
+        (dist as f64 / va.len() as f64) as f32
     }
-    // cmp_neq returns 0xFFFFFFFFFF if true and 0 else, we need to transform 0xFFFFFFF... to 1
-    simd_res.iter_mut().for_each(|x| *x = -*x);
-    //    log::debug!("simd_res : {:?}", simd_res);
-    let mut dist: i64 = simd_res.into_iter().sum();
-    // Beccause simd returns 0xFFFF... when neq true and 0 else
-    // add the residue
-    for i in simd_length..va.len() {
-        dist += if va[i] != vb[i] { 1 } else { 0 }
-    }
-    (dist as f64 / va.len() as f64) as f32
-} // end of distance_hamming_f64
+);
 
 //=======================================================================================
 
@@ -296,7 +272,7 @@ mod tests {
     }
 
     #[test]
-    fn test_avx2_hamming_i32() {
+    fn test_simdeez_hamming_i32() {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
             init_log();
@@ -316,7 +292,7 @@ mod tests {
                     .into_iter()
                     .map(|_| between.sample(&mut rng))
                     .collect();
-                let simd_dist = unsafe { distance_hamming_i32::<Avx2>(&va, &vb) } as f32;
+                let simd_dist = distance_hamming_i32_simdeez(&va, &vb) as f32;
 
                 let easy_dist: u32 = va
                     .iter()
@@ -341,7 +317,7 @@ mod tests {
     } // end of test_simdeez_hamming_i32
 
     #[test]
-    fn test_avx2_hamming_f64() {
+    fn test_simdeez_hamming_f64() {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
             init_log();
@@ -365,7 +341,7 @@ mod tests {
                 for i in 0..i / 2 {
                     vb[i] = va[i];
                 }
-                let simd_dist = unsafe { distance_hamming_f64::<Avx2>(&va, &vb) } as f32;
+                let simd_dist = distance_hamming_f64(&va, &vb) as f32;
 
                 let j_exact = ((i / 2) as f32) / (i as f32);
                 let easy_dist: u32 = va

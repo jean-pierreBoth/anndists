@@ -50,7 +50,7 @@ The speed is illustated in the [hnsw_rs](https://crates.io/crates/hnsw_rs), [ann
 
 Version 0.1.3:  switched to edition=2024
 
-Version 0.1.4:  Jianshu Zhao provided *distance_jaccard_u16_32_simd*
+Version 0.1.4:  simdeez switched to 2.0.0. Added *distance_jaccard_u16_32_simd* (contribution from Jianshu Zhao)
 
 ## Contributions
 
