@@ -4,7 +4,6 @@
 // std simd implementations
 //
 use std::simd::{f32x16, u16x32, u32x16, u64x8};
-use std::simd::{i32x16, i64x8};
 
 use std::simd::cmp::SimdPartialEq;
 use std::simd::num::SimdFloat;
@@ -141,7 +140,7 @@ pub(super) fn distance_jaccard_u32_16_simd(va: &[u32], vb: &[u32]) -> f32 {
     }
 
     dist as f32 / va.len() as f32
-}// end of distance_jaccard_u32_simd
+} // end of distance_jaccard_u32_simd
 
 pub(super) fn distance_jaccard_u16_32_simd(va: &[u16], vb: &[u16]) -> f32 {
     assert_eq!(va.len(), vb.len());
@@ -190,7 +189,7 @@ pub(super) fn distance_jaccard_f32_16_simd(va: &[f32], vb: &[f32]) -> f32 {
     }
 
     dist as f32 / va.len() as f32
-}// end of distance_jaccard_u32_simd
+} // end of distance_jaccard_u32_simd
 
 //
 pub(super) fn distance_jaccard_u64_8_simd(va: &[u64], vb: &[u64]) -> f32 {
@@ -214,7 +213,7 @@ pub(super) fn distance_jaccard_u64_8_simd(va: &[u64], vb: &[u64]) -> f32 {
     }
 
     dist as f32 / va.len() as f32
-}// end of distance_jaccard_u64_8_simd
+} // end of distance_jaccard_u64_8_simd
 
 //=======================================================================================
 
