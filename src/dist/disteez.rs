@@ -18,8 +18,8 @@ simd_runtime_generate!(
         let mut dist_simd = S::Vf32::zeroes();
         //
         while a.len() >= S::Vf32::WIDTH {
-            let xa = S::Vf32::load_from_slice(&a);
-            let xb = S::Vf32::load_from_slice(&b);
+            let xa = S::Vf32::load_from_slice(a);
+            let xb = S::Vf32::load_from_slice(b);
             let delta = S::Vf32::abs(xa - xb);
             dist_simd += delta;
             //
@@ -51,8 +51,8 @@ simd_runtime_generate!(
         let mut dist_simd = S::Vf32::zeroes();
 
         while a.len() >= S::Vf32::WIDTH {
-            let xa = S::Vf32::load_from_slice(&a);
-            let xb = S::Vf32::load_from_slice(&b);
+            let xa = S::Vf32::load_from_slice(a);
+            let xb = S::Vf32::load_from_slice(b);
             let mut delta = xa - xb;
             delta *= delta;
             dist_simd += delta;
@@ -84,8 +84,8 @@ simd_runtime_generate!(
         let mut dot_simd = S::Vf32::zeroes();
         //
         while a.len() >= S::Vf32::WIDTH {
-            let xa = S::Vf32::load_from_slice(&a);
-            let xb = S::Vf32::load_from_slice(&b);
+            let xa = S::Vf32::load_from_slice(a);
+            let xb = S::Vf32::load_from_slice(b);
             let delta = xa * xb;
             dot_simd += delta;
             // shift
@@ -116,8 +116,8 @@ simd_runtime_generate!(
         let mut dist: f32;
         //
         while a.len() >= S::Vf32::WIDTH {
-            let xa = S::Vf32::load_from_slice(&a);
-            let xb = S::Vf32::load_from_slice(&b);
+            let xa = S::Vf32::load_from_slice(a);
+            let xb = S::Vf32::load_from_slice(b);
             let prod = xa * xb;
             let prod_s = S::Vf32::sqrt(prod);
             dist_simd += prod_s;
@@ -150,14 +150,14 @@ simd_runtime_generate!(
         let mut dist: f32;
         //
         while a.len() >= S::Vf32::WIDTH {
-            let xa = S::Vf32::load_from_slice(&a);
-            let xb = S::Vf32::load_from_slice(&b);
+            let xa = S::Vf32::load_from_slice(a);
+            let xb = S::Vf32::load_from_slice(b);
             let delta = xa - xb;
             for j in 0..S::Vf32::WIDTH {
                 // take care of zeros!
                 logslice.push((xa[j].max(M_MIN) / xb[j].max(M_MIN)).ln());
             }
-            let prod_s = delta * S::Vf32::load_from_slice_exact(&logslice.as_slice()).unwrap();
+            let prod_s = delta * S::Vf32::load_from_slice_exact(logslice.as_slice()).unwrap();
             dist_simd += prod_s;
             logslice.clear();
             // shift
@@ -189,8 +189,8 @@ simd_runtime_generate!(
         //
         let mut dist_simd = S::Vi32::zeroes();
         while a.len() >= S::Vf32::WIDTH {
-            let xa = S::Vi32::load_from_slice(&a);
-            let xb = S::Vi32::load_from_slice(&b);
+            let xa = S::Vi32::load_from_slice(a);
+            let xb = S::Vi32::load_from_slice(b);
             let delta = S::Vi32::cmp_neq(xa, xb);
             dist_simd += delta;
             // shift
@@ -226,8 +226,8 @@ simd_runtime_generate!(
         let mut dist_simd = S::Vi64::zeroes();
         //    log::debug!("initial simd_res : {:?}", dist_simd);
         while a.len() >= S::Vf64::WIDTH {
-            let xa = S::Vf64::load_from_slice(&a);
-            let xb = S::Vf64::load_from_slice(&b);
+            let xa = S::Vf64::load_from_slice(a);
+            let xb = S::Vf64::load_from_slice(b);
             let delta = S::Vf64::cmp_neq(xa, xb);
             let delta_i = delta.bitcast_i64();
             //        log::debug!("delta_i : , {:?}", delta_i);
