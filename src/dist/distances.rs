@@ -105,6 +105,15 @@ impl Distance<f32> for DistL1 {
                     va.iter().zip(vb.iter()).map(|t| (*t.0 - *t.1).abs()).sum()
                 }
             }
+            #[cfg(any(target_arch = "aarch64"))] {
+                if is_aarch64_feature_detected!("asimd") {
+                    distance_l1_f32_simdeez(va,vb)
+                }
+                else {
+                    assert_eq!(va.len(), vb.len());
+                    va.iter().zip(vb.iter()).map(|t| (*t.0 - *t.1).abs()).sum()
+                }
+            }
         }
         else if #[cfg(feature = "stdsimd")] {
             distance_l1_f32_simd(va,vb)
@@ -160,15 +169,22 @@ impl Distance<f32> for DistL2 {
         //
         cfg_if::cfg_if! {
             if #[cfg(feature = "simdeez_f")] {
-            #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-            {
-                if is_x86_feature_detected!("avx2") {
-                    distance_l2_f32_simdeez(va, vb)
+                #[cfg(any(target_arch = "x86", target_arch = "x86_64"))] {
+                    if is_x86_feature_detected!("avx2") {
+                        distance_l2_f32_simdeez(va, vb)
+                    }
+                    else {
+                        scalar_l2_f32(va, vb)
+                    }
                 }
-                else {
-                    scalar_l2_f32(va, vb)
+                #[cfg(any(target_arch = "aarch64"))] {
+                    if is_x86_feature_detected!("asimd") {
+                        distance_l2_f32_simdeez(va, vb)
+                    }
+                    else {
+                        scalar_l2_f32(va, vb)
+                    }
                 }
-            }
             } else if #[cfg(feature = "stdsimd")] {
                 return distance_l2_f32_simd(va, vb);
             }
@@ -277,11 +293,19 @@ impl Distance<f32> for DistDot {
                         distance_dot_f32_simdeez(va, vb)
                     }
                     else {
-                        return scalar_dot_f32(va, vb);
+                        scalar_dot_f32(va, vb)
                     }
                 } // end x86
+                #[cfg(any(target_arch = "aarch64"))] {
+                    if is_x86_feature_detected!("asimd") {
+                        distance_dot_f32_simdeez(va, vb)
+                    }
+                    else {
+                        scalar_l2_f32(va, vb)
+                    }
+                }
             } else if #[cfg(feature = "stdsimd")] {
-                return distance_dot_f32_simd_iter(va,vb);
+                distance_dot_f32_simd_iter(va,vb)
             }
             else {
                 scalar_dot_f32(va, vb)
@@ -341,6 +365,13 @@ impl Distance<f32> for DistHellinger {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
                 if is_x86_feature_detected!("avx2") {
+                    //    log::debug!("DistHellinger f32, using simdeez implementation");
+                    return distance_hellinger_f32_simdeez(va, vb);
+                }
+            }
+            #[cfg(any(target_arch = "aarch64"))]
+            {
+                if is_x86_feature_detected!("asimd") {
                     //    log::debug!("DistHellinger f32, using simdeez implementation");
                     return distance_hellinger_f32_simdeez(va, vb);
                 }
@@ -405,6 +436,12 @@ impl Distance<f32> for DistJeffreys {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
                 if is_x86_feature_detected!("avx2") {
+                    return distance_jeffreys_f32_simdeez(va, vb);
+                }
+            }
+            #[cfg(any(target_arch = "aarch64"))]
+            {
+                if is_x86_feature_detected!("asimd") {
                     return distance_jeffreys_f32_simdeez(va, vb);
                 }
             }
@@ -484,6 +521,12 @@ impl Distance<i32> for DistHamming {
             #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
             {
                 if is_x86_feature_detected!("avx2") {
+                    return distance_hamming_i32_simdeez(va, vb);
+                }
+            }
+            #[cfg(any(target_arch = "aarch64"))]
+            {
+                if is_x86_feature_detected!("asimd") {
                     return distance_hamming_i32_simdeez(va, vb);
                 }
             }
@@ -798,15 +841,31 @@ mod tests {
     } // end if
 
     #[test]
-    fn have_avx512f() {
+    fn have_avx512f_x86() {
         #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
         {
             if is_x86_feature_detected!("avx512f") {
-                println!("I have avx512f");
+                println!("have_avx512f_x86 test : I have avx512f");
             } else {
-                println!(" ************ I DO NOT  have avx512f  ***************");
+                println!(
+                    "have_avx512f_x86 test : ************ I DO NOT  have avx512f  ***************"
+                );
             }
         } // end of have_avx512f
+    }
+
+    #[test]
+    fn have_asimd_aarch64() {
+        #[cfg(target_arch = "aarch64")]
+        {
+            if is_aarch64_feature_detected!("asimd") {
+                println!("have_asimd_aarch64 test : I have asimd");
+            } else {
+                println!(
+                    "have_asimd_aarch64 test : ************ I DO NOT  have asimd  ***************"
+                );
+            }
+        } // end aarch64
     }
 
     #[test]
