@@ -29,8 +29,8 @@ simd_runtime_generate!(
         // horizontal add
         dist = S::Vf32::horizontal_add(dist_simd);
         // remaining
-        for i in 0..va.len() {
-            //        log::debug!("distance_l1_f32, i {:?} len {:?} ", i, va.len());
+        for i in 0..a.len() {
+            //        log::debug!("distance_l1_f32, i {:?} len {:?} ", i, a.len());
             dist += (a[i] - b[i]).abs();
         }
         assert!(dist >= 0.);
@@ -63,7 +63,7 @@ simd_runtime_generate!(
         //
         dist = S::Vf32::horizontal_add(dist_simd);
         // remaining
-        for i in 0..va.len() {
+        for i in 0..a.len() {
             dist += (a[i] - b[i]) * (a[i] - b[i]);
         }
         assert!(dist >= 0.);
