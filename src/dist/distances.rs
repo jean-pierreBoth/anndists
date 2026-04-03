@@ -106,7 +106,7 @@ impl Distance<f32> for DistL1 {
                 }
             }
             #[cfg(any(target_arch = "aarch64"))] {
-                if is_aarch64_feature_detected!("asimd") {
+                if std::arch::is_aarch64_feature_detected!("asimd") {
                     distance_l1_f32_simdeez(va,vb)
                 }
                 else {
@@ -178,7 +178,7 @@ impl Distance<f32> for DistL2 {
                     }
                 }
                 #[cfg(any(target_arch = "aarch64"))] {
-                    if is_x86_feature_detected!("asimd") {
+                    if std::arch::is_aarch64_feature_detected!("asimd") {
                         distance_l2_f32_simdeez(va, vb)
                     }
                     else {
@@ -297,7 +297,7 @@ impl Distance<f32> for DistDot {
                     }
                 } // end x86
                 #[cfg(any(target_arch = "aarch64"))] {
-                    if is_x86_feature_detected!("asimd") {
+                    if std::arch::is_aarch64_feature_detected!("asimd") {
                         distance_dot_f32_simdeez(va, vb)
                     }
                     else {
@@ -371,7 +371,7 @@ impl Distance<f32> for DistHellinger {
             }
             #[cfg(any(target_arch = "aarch64"))]
             {
-                if is_x86_feature_detected!("asimd") {
+                if std::arch::is_aarch64_feature_detected!("asimd") {
                     //    log::debug!("DistHellinger f32, using simdeez implementation");
                     return distance_hellinger_f32_simdeez(va, vb);
                 }
@@ -441,7 +441,7 @@ impl Distance<f32> for DistJeffreys {
             }
             #[cfg(any(target_arch = "aarch64"))]
             {
-                if is_x86_feature_detected!("asimd") {
+                if std::arch::is_aarch64_feature_detected!("asimd") {
                     return distance_jeffreys_f32_simdeez(va, vb);
                 }
             }
@@ -526,7 +526,7 @@ impl Distance<i32> for DistHamming {
             }
             #[cfg(any(target_arch = "aarch64"))]
             {
-                if is_x86_feature_detected!("asimd") {
+                if std::arch::is_aarch64_feature_detected!("asimd") {
                     return distance_hamming_i32_simdeez(va, vb);
                 }
             }
@@ -858,7 +858,7 @@ mod tests {
     fn have_asimd_aarch64() {
         #[cfg(target_arch = "aarch64")]
         {
-            if is_aarch64_feature_detected!("asimd") {
+            if std::arch::is_aarch64_feature_detected!("asimd") {
                 println!("have_asimd_aarch64 test : I have asimd");
             } else {
                 println!(
