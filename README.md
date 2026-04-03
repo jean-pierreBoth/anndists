@@ -53,7 +53,7 @@ Version 0.1.3:  switched to edition=2024
 Version 0.1.4:  simdeez switched to 2.0.0. Added *distance_jaccard_u16_32_simd* (contribution from Jianshu Zhao)
 
 Version 0.1.5:  simdeez dep updated to 3.0 for avx512 support.  
-                Bug fix in disteez. Added support for aarch64 (not tested i dont have arm...)
+                Bug fix in disteez. Added support for aarch64, tested by Jianshu Zhao
 
 ## Contributions
 
