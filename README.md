@@ -34,11 +34,13 @@ Simd support is provided with the [simdeez](https://crates.io/crates/simdeez) cr
 
 ### Simd
 
-* The simd provided by the simdeez crate is accessible with the feature "simdeez_f" for x86_64 processors.
-Compile with **cargo build --release --features "simdeez_f"** ....
-To compile this crate on a M1 chip just do not activate this feature.
+It is recommanded to use the compile flag **target-cpu=native** to activate dynamic cpu feature detection, for example
+adding **RUSTFLAGS=-C target-cpu=native** in your environment.
 
-* It is nevertheless possible to experiment with std::simd. Compiling with the feature stdsimd
+* The simd provided by the simdeez crate is accessible with the feature "simdeez_f" for x86_64 or aarch64 processors.
+Compile with **cargo build --release --features "simdeez_f"**.
+
+* It is also possible to experiment with std::simd. Compiling with the feature stdsimd
 (**cargo build --release --features "stdsimd"**), activates the  portable_simd feature on rust nightly. **This requires nightly compiler**.
 Only the Hamming distance with the u32x16 and u64x8 types and DistL1,DistL2 and DistDot on f32*16 are provided for now.
 
