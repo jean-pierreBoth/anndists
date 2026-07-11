@@ -257,7 +257,6 @@ simd_runtime_generate!(
 //=======================================================================================
 
 #[cfg(test)]
-
 mod tests {
     use super::*;
     use crate::dist::*;
@@ -268,7 +267,7 @@ mod tests {
         let mut builder = env_logger::Builder::from_default_env();
         let _ = builder.is_test(true).try_init();
         println!("\n ************** initializing logger *****************\n");
-        return 1;
+        1
     }
 
     #[test]
@@ -292,7 +291,7 @@ mod tests {
                     .into_iter()
                     .map(|_| between.sample(&mut rng))
                     .collect();
-                let simd_dist = distance_hamming_i32_simdeez(&va, &vb) as f32;
+                let simd_dist = distance_hamming_i32_simdeez(&va, &vb);
 
                 let easy_dist: u32 = va
                     .iter()
@@ -338,10 +337,8 @@ mod tests {
                     .map(|_| between.sample(&mut rng))
                     .collect();
                 // reset half of vb to va
-                for i in 0..i / 2 {
-                    vb[i] = va[i];
-                }
-                let simd_dist = distance_hamming_f64(&va, &vb) as f32;
+                vb[..(i / 2)].copy_from_slice(&va[..(i / 2)]);
+                let simd_dist = distance_hamming_f64(&va, &vb);
 
                 let j_exact = ((i / 2) as f32) / (i as f32);
                 let easy_dist: u32 = va

@@ -28,9 +28,9 @@ pub(super) fn distance_l1_f32_simd(va: &[f32], vb: &[f32]) -> f32 {
     let mut dist = dist_simd.to_array().iter().sum::<f32>();
     // residual
     for i in simd_length..va.len() {
-        dist = dist + (va[i] - vb[i]).abs();
+        dist += (va[i] - vb[i]).abs();
     }
-    return dist as f32;
+    dist
 } // end of distance_l1_f32_simd
 
 //
@@ -55,10 +55,9 @@ pub(super) fn distance_l2_f32_simd(va: &[f32], vb: &[f32]) -> f32 {
     let mut dist = dist_simd.to_array().iter().sum::<f32>();
     // residual
     for i in simd_length..va.len() {
-        dist = dist + (va[i] - vb[i]) * (va[i] - vb[i]);
+        dist += (va[i] - vb[i]) * (va[i] - vb[i]);
     }
-    let dist = dist.sqrt();
-    return dist as f32;
+    dist.sqrt()
 } // end of distance_l2_f32_simd
 
 //
@@ -86,10 +85,10 @@ pub(super) fn distance_dot_f32_simd_loop(va: &[f32], vb: &[f32]) -> f32 {
     // residual
     let mut dist = dist_simd.to_array().iter().sum::<f32>();
     for i in simd_length..va.len() {
-        dist = dist + va[i] * vb[i];
+        dist += va[i] * vb[i];
     }
     assert!(dist <= 1.000002);
-    return (1. - dist).max(0.);
+    (1. - dist).max(0.)
 }
 
 // iter version as fast as loop version
@@ -110,10 +109,10 @@ pub(super) fn distance_dot_f32_simd_iter(va: &[f32], vb: &[f32]) -> f32 {
     let mut dist = dist_simd.to_array().iter().sum::<f32>();
     // residual
     for i in simd_length..va.len() {
-        dist = dist + va[i] * vb[i];
+        dist += va[i] * vb[i];
     }
     assert!(dist <= 1.000002);
-    return (1. - dist).max(0.);
+    (1. - dist).max(0.)
 }
 
 //
@@ -218,7 +217,6 @@ pub(super) fn distance_jaccard_u64_8_simd(va: &[u64], vb: &[u64]) -> f32 {
 //=======================================================================================
 
 #[cfg(test)]
-
 mod tests {
 
     use super::*;
@@ -228,7 +226,7 @@ mod tests {
         let mut builder = env_logger::Builder::from_default_env();
         let _ = builder.is_test(true).try_init();
         println!("\n ************** initializing logger *****************\n");
-        return 1;
+        1
     }
 
     //  to run with cargo test --features stdsimd distsimd::tests::test_simd_hamming_u32 [-- --nocapture]
@@ -336,9 +334,7 @@ mod tests {
                 .map(|_| between.sample(&mut rng))
                 .collect();
             // reset half of vb to va
-            for i in 0..i / 2 {
-                vb[i] = va[i];
-            }
+            vb[..(i / 2)].copy_from_slice(&va[..(i / 2)]);
             let simd_dist = distance_jaccard_f32_16_simd(&va, &vb);
 
             let easy_dist: u64 = va

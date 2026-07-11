@@ -186,7 +186,7 @@ impl Distance<f32> for DistL2 {
                     }
                 }
             } else if #[cfg(feature = "stdsimd")] {
-                return distance_l2_f32_simd(va, vb);
+                distance_l2_f32_simd(va, vb)
             }
             else {
                 scalar_l2_f32(va, vb)
@@ -287,9 +287,7 @@ impl Distance<f32> for DistDot {
             if #[cfg(feature = "simdeez_f")] {
                 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
                 {
-                    if is_x86_feature_detected!("avx2") {
-                        distance_dot_f32_simdeez(va, vb)
-                    } else if is_x86_feature_detected!("sse2") {
+                    if is_x86_feature_detected!("avx2") || is_x86_feature_detected!("sse2") {
                         distance_dot_f32_simdeez(va, vb)
                     }
                     else {
@@ -369,7 +367,7 @@ impl Distance<f32> for DistHellinger {
                     return distance_hellinger_f32_simdeez(va, vb);
                 }
             }
-            #[cfg(any(target_arch = "aarch64"))]
+            #[cfg(target_arch = "aarch64")]
             {
                 if std::arch::is_aarch64_feature_detected!("asimd") {
                     //    log::debug!("DistHellinger f32, using simdeez implementation");
@@ -439,7 +437,7 @@ impl Distance<f32> for DistJeffreys {
                     return distance_jeffreys_f32_simdeez(va, vb);
                 }
             }
-            #[cfg(any(target_arch = "aarch64"))]
+            #[cfg(target_arch = "aarch64")]
             {
                 if std::arch::is_aarch64_feature_detected!("asimd") {
                     return distance_jeffreys_f32_simdeez(va, vb);
@@ -524,7 +522,7 @@ impl Distance<i32> for DistHamming {
                     return distance_hamming_i32_simdeez(va, vb);
                 }
             }
-            #[cfg(any(target_arch = "aarch64"))]
+            #[cfg(target_arch = "aarch64")]
             {
                 if std::arch::is_aarch64_feature_detected!("asimd") {
                     return distance_hamming_i32_simdeez(va, vb);
@@ -566,7 +564,7 @@ impl Distance<f32> for DistHamming {
     fn eval(&self, va: &[f32], vb: &[f32]) -> f32 {
         cfg_if::cfg_if! {
             if #[cfg(feature = "stdsimd")] {
-                return distance_jaccard_f32_16_simd(va,vb);
+                distance_jaccard_f32_16_simd(va,vb)
             }
             else {
                 assert_eq!(va.len(), vb.len());
@@ -583,7 +581,7 @@ impl Distance<f32> for DistHamming {
 impl Distance<u32> for DistHamming {
     fn eval(&self, va: &[u32], vb: &[u32]) -> f32 {
         //
-        return distance_jaccard_u32_16_simd(va, vb);
+        distance_jaccard_u32_16_simd(va, vb)
     } // end of eval
 } // end implementation Distance<u32>
 
@@ -592,7 +590,7 @@ impl Distance<u32> for DistHamming {
 #[cfg(feature = "stdsimd")]
 impl Distance<u64> for DistHamming {
     fn eval(&self, va: &[u64], vb: &[u64]) -> f32 {
-        return distance_jaccard_u64_8_simd(va, vb);
+        distance_jaccard_u64_8_simd(va, vb)
     } // end of eval
 } // end implementation Distance<u64>
 
@@ -601,7 +599,7 @@ impl Distance<u64> for DistHamming {
 #[cfg(feature = "stdsimd")]
 impl Distance<u16> for DistHamming {
     fn eval(&self, va: &[u16], vb: &[u16]) -> f32 {
-        return distance_jaccard_u16_32_simd(va, vb);
+        distance_jaccard_u16_32_simd(va, vb)
     }
 }
 // i32 is implmeented by simd
@@ -801,7 +799,6 @@ impl<T: Copy + Clone + Sized + Send + Sync, F: Float> Distance<T> for DistPtr<T,
 //=======================================================================================
 
 #[cfg(test)]
-
 mod tests {
     use super::*;
 
