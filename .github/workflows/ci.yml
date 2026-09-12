@@ -1,0 +1,76 @@
+name: Ci
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  stable:
+    # clippy test on stable with simdeez
+    name: Lint , test  , build on  stable
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install stable Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+
+      - name: Fmt
+        run: cargo fmt --all --check
+
+      - name: Clippy (no features)
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Clippy (simdeez_f)
+        run: cargo clippy  --all-targets --features simdeez_f -- -D warnings
+
+      - name: Clippy arm
+        run: cargo clippy --all --all-targets --target aarch64-unknown-linux-gnu -- --deny warnings
+
+      - name: test (simdeez_f)
+        run: cargo test --features simdeez_f -- --no-capture
+
+      - name: build
+        run: cargo build --features simdeez_f
+
+  nightly:
+    name: Lint test build nightly with stdsimd
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install nightly Rust toolchain
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          toolchain: nightly
+          components: rustfmt, clippy
+
+      - name: Clippy (stdsimd)
+        run: cargo clippy  --all-targets --features stdsimd -- -D warnings
+
+      - name: test (simd)
+        run: cargo test --features stdsimd -- --no-capture
+
+      - name: test (simd)
+        run: cargo test --features stdsimd --verbose
+
+  check-doc:
+    name: Check doc
+    runs-on: ubuntu-latest
+    env:
+      RUSTDOCFLAGS: "-Dwarnings --cfg docsrs -Zunstable-options --no-deps --generate-link-to-definition"
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@nightly
+      - name: anndists
+        run: cargo doc --all-features --no-deps
