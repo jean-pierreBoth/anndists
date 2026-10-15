@@ -114,6 +114,10 @@ impl Distance<f32> for DistL1 {
                     va.iter().zip(vb.iter()).map(|t| (*t.0 - *t.1).abs()).sum()
                 }
             }
+            #[cfg(not(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64")))] {
+                assert_eq!(va.len(), vb.len());
+                va.iter().zip(vb.iter()).map(|t| (*t.0 - *t.1).abs()).sum()
+            }
         }
         else if #[cfg(feature = "stdsimd")] {
             distance_l1_f32_simd(va,vb)
@@ -184,6 +188,9 @@ impl Distance<f32> for DistL2 {
                     else {
                         scalar_l2_f32(va, vb)
                     }
+                }
+                #[cfg(not(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64")))] {
+                    scalar_l2_f32(va, vb)
                 }
             } else if #[cfg(feature = "stdsimd")] {
                 distance_l2_f32_simd(va, vb)
@@ -301,6 +308,9 @@ impl Distance<f32> for DistDot {
                     else {
                         scalar_l2_f32(va, vb)
                     }
+                }
+                #[cfg(not(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64")))] {
+                    scalar_dot_f32(va, vb)
                 }
             } else if #[cfg(feature = "stdsimd")] {
                 distance_dot_f32_simd_iter(va,vb)
@@ -489,7 +499,7 @@ implementDistJensenShannon!(f32);
 
 //=======================================================================================
 
-/// Hamming distance. Implemented for u8, u16, u32, i32 and i16
+/// Hamming distance. Implemented for u8, u16, u32, u64, i32 and i16
 /// The distance returned is normalized by length of slices, so it is between 0. and 1.  
 ///
 /// A special implementation for f64 is made but exclusively dedicated to SuperMinHash usage in crate [probminhash](https://crates.io/crates/probminhash).  
@@ -577,43 +587,55 @@ impl Distance<f32> for DistHamming {
 
 //
 
-#[cfg(feature = "stdsimd")]
-impl Distance<u32> for DistHamming {
-    fn eval(&self, va: &[u32], vb: &[u32]) -> f32 {
-        //
-        distance_jaccard_u32_16_simd(va, vb)
-    } // end of eval
-} // end implementation Distance<u32>
-
-//
-
-#[cfg(feature = "stdsimd")]
-impl Distance<u64> for DistHamming {
-    fn eval(&self, va: &[u64], vb: &[u64]) -> f32 {
-        distance_jaccard_u64_8_simd(va, vb)
-    } // end of eval
-} // end implementation Distance<u64>
-
-//
-
-#[cfg(feature = "stdsimd")]
-impl Distance<u16> for DistHamming {
-    fn eval(&self, va: &[u16], vb: &[u16]) -> f32 {
-        distance_jaccard_u16_32_simd(va, vb)
-    }
+macro_rules! unsigned_hamming_distance {
+    ($unsigned:ty, $stdsimd:ident, $simdeez:ident, $scalar:ident) => {
+        impl Distance<$unsigned> for DistHamming {
+            #[inline]
+            fn eval(&self, va: &[$unsigned], vb: &[$unsigned]) -> f32 {
+                cfg_if::cfg_if! {
+                    if #[cfg(feature = "stdsimd")] {
+                        $stdsimd(va, vb)
+                    } else if #[cfg(feature = "simdeez_f")] {
+                        cfg_if::cfg_if! {
+                            // WebAssembly cannot detect SIMD at runtime. Do not
+                            // require simd128 unless the build explicitly enables it.
+                            if #[cfg(all(target_arch = "wasm32", not(target_feature = "simd128")))] {
+                                $scalar(va, vb)
+                            } else {
+                                $simdeez(va, vb)
+                            }
+                        }
+                    } else {
+                        assert_eq!(va.len(), vb.len());
+                        let dist = va.iter().zip(vb).filter(|(a, b)| a != b).count();
+                        dist as f32 / va.len() as f32
+                    }
+                }
+            }
+        }
+    };
 }
-// i32 is implmeented by simd
+
+unsigned_hamming_distance!(
+    u16,
+    distance_jaccard_u16_32_simd,
+    distance_hamming_u16_simdeez,
+    distance_hamming_u16_simdeez_scalar
+);
+unsigned_hamming_distance!(
+    u32,
+    distance_jaccard_u32_16_simd,
+    distance_hamming_u32_simdeez,
+    distance_hamming_u32_simdeez_scalar
+);
+unsigned_hamming_distance!(
+    u64,
+    distance_jaccard_u64_8_simd,
+    distance_hamming_u64_simdeez,
+    distance_hamming_u64_simdeez_scalar
+);
 
 implementHammingDistance!(u8);
-
-#[cfg(not(feature = "stdsimd"))]
-implementHammingDistance!(u16);
-
-#[cfg(not(feature = "stdsimd"))]
-implementHammingDistance!(u32);
-
-#[cfg(not(feature = "stdsimd"))]
-implementHammingDistance!(u64);
 
 implementHammingDistance!(i16);
 

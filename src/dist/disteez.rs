@@ -212,6 +212,55 @@ simd_runtime_generate!(
     }
 );
 
+macro_rules! unsigned_hamming_simdeez {
+    ($name:ident, $unsigned:ty, $signed:ty, $vector:ident) => {
+        simd_runtime_generate!(
+            #[allow(dead_code)] // Also generates scalar and generic entry points.
+            pub(super) fn $name(va: &[$unsigned], vb: &[$unsigned]) -> f32 {
+                assert_eq!(va.len(), vb.len());
+
+                // Each lane gains at most one per vector; bound even the i16 counters.
+                let block_size = i16::MAX as usize * S::$vector::WIDTH;
+                let mut dist = 0usize;
+                for (a, b) in va.chunks(block_size).zip(vb.chunks(block_size)) {
+                    let mut a_chunks = a.chunks_exact(S::$vector::WIDTH);
+                    let mut b_chunks = b.chunks_exact(S::$vector::WIDTH);
+                    let mut counts = S::$vector::zeroes();
+                    for (a_chunk, b_chunk) in a_chunks.by_ref().zip(b_chunks.by_ref()) {
+                        // SAFETY: each chunk has WIDTH elements. Same-width signed and
+                        // unsigned integers share layout and accept every bit pattern;
+                        // the loads do not require SIMD alignment.
+                        let (a_vec, b_vec) = unsafe {
+                            (
+                                S::$vector::load_from_ptr_unaligned(
+                                    a_chunk.as_ptr().cast::<$signed>(),
+                                ),
+                                S::$vector::load_from_ptr_unaligned(
+                                    b_chunk.as_ptr().cast::<$signed>(),
+                                ),
+                            )
+                        };
+                        // A comparison mask is -1 for a mismatch and 0 for a match.
+                        counts -= a_vec.cmp_neq(b_vec);
+                    }
+                    dist += counts.horizontal_add() as usize;
+                    dist += a_chunks
+                        .remainder()
+                        .iter()
+                        .zip(b_chunks.remainder())
+                        .filter(|(a, b)| a != b)
+                        .count();
+                }
+                dist as f32 / va.len() as f32
+            }
+        );
+    };
+}
+
+unsigned_hamming_simdeez!(distance_hamming_u16_simdeez, u16, i16, Vi16);
+unsigned_hamming_simdeez!(distance_hamming_u32_simdeez, u32, i32, Vi32);
+unsigned_hamming_simdeez!(distance_hamming_u64_simdeez, u64, i64, Vi64);
+
 // special implementation for f64 exclusively in the context of SuperMinHash algorithm
 simd_runtime_generate!(
     pub(super) fn distance_hamming_f64(va: &[f64], vb: &[f64]) -> f32 {
@@ -261,13 +310,112 @@ mod tests {
     use super::*;
     use crate::dist::*;
 
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     use rand::distr::{Distribution, Uniform};
 
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
     fn init_log() -> u64 {
         let mut builder = env_logger::Builder::from_default_env();
         let _ = builder.is_test(true).try_init();
         println!("\n ************** initializing logger *****************\n");
         1
+    }
+
+    fn check_unsigned_hamming_backend<S: Simd>() {
+        macro_rules! check_width {
+            ($unsigned:ty, $vector:ident, $kernel:ident) => {
+                let check = |a: &[$unsigned], b: &[$unsigned]| {
+                    let count = a.iter().zip(b).filter(|(a, b)| a != b).count();
+                    let want = count as f32 / a.len() as f32;
+                    let got = $kernel::<S>(a, b);
+                    let public = DistHamming.eval(a, b);
+                    if want.is_nan() {
+                        assert!(got.is_nan());
+                        assert!(public.is_nan());
+                    } else {
+                        assert_eq!(got.to_bits(), want.to_bits());
+                        assert_eq!(got.to_bits(), public.to_bits());
+                    }
+                };
+                let block_boundary = i16::MAX as usize * S::$vector::WIDTH;
+                for len in (0..=65).chain([
+                    block_boundary - 1,
+                    block_boundary,
+                    block_boundary + 1,
+                    block_boundary + S::$vector::WIDTH + 1,
+                ]) {
+                    let a = vec![<$unsigned>::MAX; len + 1];
+                    let mut b = a.clone();
+                    check(&a[1..], &b[1..]);
+                    for (i, value) in b[1..].iter_mut().enumerate() {
+                        *value ^= (1 as $unsigned) << (i % <$unsigned>::BITS as usize);
+                    }
+                    check(&a[1..], &b[1..]);
+                    for i in (1..b.len()).step_by(3) {
+                        b[i] = a[i];
+                    }
+                    check(&a[1..], &b[1..]);
+                }
+            };
+        }
+
+        check_width!(u16, Vi16, distance_hamming_u16_simdeez_generic);
+        check_width!(u32, Vi32, distance_hamming_u32_simdeez_generic);
+        check_width!(u64, Vi64, distance_hamming_u64_simdeez_generic);
+    }
+
+    #[test]
+    fn test_unsigned_hamming_scalar() {
+        check_unsigned_hamming_backend::<engines::scalar::Scalar>();
+    }
+
+    #[test]
+    #[cfg(target_arch = "aarch64")]
+    fn test_unsigned_hamming_neon() {
+        if std::arch::is_aarch64_feature_detected!("neon") {
+            check_unsigned_hamming_backend::<engines::neon::Neon>();
+        }
+    }
+
+    #[test]
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    fn test_unsigned_hamming_sse2() {
+        if is_x86_feature_detected!("sse2") {
+            check_unsigned_hamming_backend::<engines::sse2::Sse2>();
+        }
+    }
+
+    #[test]
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    fn test_unsigned_hamming_sse41() {
+        if is_x86_feature_detected!("sse4.1") {
+            check_unsigned_hamming_backend::<engines::sse41::Sse41>();
+        }
+    }
+
+    #[test]
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    fn test_unsigned_hamming_avx2() {
+        if is_x86_feature_detected!("avx2") && is_x86_feature_detected!("fma") {
+            check_unsigned_hamming_backend::<engines::avx2::Avx2>();
+        }
+    }
+
+    #[test]
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    fn test_unsigned_hamming_avx512() {
+        if is_x86_feature_detected!("avx512f")
+            && is_x86_feature_detected!("avx512bw")
+            && is_x86_feature_detected!("avx512dq")
+        {
+            check_unsigned_hamming_backend::<engines::avx512::Avx512>();
+        }
+    }
+
+    #[test]
+    #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+    fn test_unsigned_hamming_wasm() {
+        check_unsigned_hamming_backend::<engines::wasm32::Wasm>();
     }
 
     #[test]

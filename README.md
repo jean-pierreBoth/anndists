@@ -34,15 +34,24 @@ Simd support is provided with the [simdeez](https://crates.io/crates/simdeez) cr
 
 ### Simd
 
-It is recommanded to use the compile flag **target-cpu=native** to activate dynamic cpu feature detection, for example
-adding **RUSTFLAGS=-C target-cpu=native** in your environment.
+SIMDeez selects a supported backend at runtime; **target-cpu=native** is not
+required for this dispatch. That flag can additionally optimize code for the
+build machine, but the resulting binary may not run on older CPUs.
 
 * The simd provided by the simdeez crate is accessible with the feature "simdeez_f" for x86_64 or aarch64 processors.
 Compile with **cargo build --release --features "simdeez_f"**.
+On stable Rust, this includes Hamming distance for `u16`, `u32`, and `u64`, with
+runtime selection of AVX-512, AVX2, SSE, or NEON and a scalar fallback. Unsigned
+hashes are compared through same-width signed SIMD lanes without converting or
+allocating input buffers. WebAssembly uses its SIMD backend when built with
+`-C target-feature=+simd128`, and otherwise uses the scalar backend for these
+unsigned Hamming distances.
 
 * It is also possible to experiment with std::simd. Compiling with the feature stdsimd
 (**cargo build --release --features "stdsimd"**), activates the  portable_simd feature on rust nightly. **This requires nightly compiler**.
-Only the Hamming distance with the u32x16 and u64x8 types and DistL1,DistL2 and DistDot on f32*16 are provided for now.
+Hamming distance with u16x32, u32x16 and u64x8 and DistL1,DistL2 and DistDot on f32*16 are provided.
+If both features are enabled, unsigned Hamming distance retains the `stdsimd`
+backend, so that configuration still requires nightly Rust.
 
 ## Benchmarks and Examples
 
