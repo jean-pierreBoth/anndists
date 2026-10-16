@@ -42,7 +42,9 @@ Compile with **cargo build --release --features "simdeez_f"**.
 
 * It is also possible to experiment with std::simd. Compiling with the feature stdsimd
 (**cargo build --release --features "stdsimd"**), activates the  portable_simd feature on rust nightly. **This requires nightly compiler**.
-Only the Hamming distance with the u32x16 and u64x8 types and DistL1,DistL2 and DistDot on f32*16 are provided for now.
+The Hamming distance with the u16x32, u32x16 and u64x8 types and DistL1,DistL2 and DistDot on f32*16 are provided for now.
+
+Both features cannot be activated simultaneously.
 
 ## Benchmarks and Examples
 

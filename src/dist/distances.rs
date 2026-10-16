@@ -2,6 +2,9 @@
 //! and a structure to enable the user to implement its own distances.
 //! For the heavily used case (f32) we provide simd avx2 and std::simd implementations.
 
+#[cfg(all(feature = "stdsimd", feature = "simdeez_f"))]
+compile_error!("cannot have both features simdeez_f and stdsimd");
+
 #[cfg(feature = "stdsimd")]
 use super::distsimd::*;
 
