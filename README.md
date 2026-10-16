@@ -34,9 +34,6 @@ Simd support is provided with the [simdeez](https://crates.io/crates/simdeez) cr
 
 ### Simd
 
-It is recommanded to use the compile flag **target-cpu=native** to activate dynamic cpu feature detection, for example
-adding **RUSTFLAGS=-C target-cpu=native** in your environment.
-
 * The simd provided by the simdeez crate is accessible with the feature "simdeez_f" for x86_64 or aarch64 processors.
 Compile with **cargo build --release --features "simdeez_f"**.
 
